@@ -1,0 +1,8 @@
+/*.ez
+/.fetch
+/_build/
+/cover/
+/deps/
+/doc/
+/dsmr-*.tar
+/erl_crash.dump
