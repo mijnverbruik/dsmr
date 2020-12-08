@@ -1,4 +1,4 @@
-# DSMR
+# ex_dsmr
 
 [![Build Status](https://img.shields.io/github/workflow/status/webstronauts/ex_dsmr/test.svg?style=flat-square)](https://github.com/webstronauts/ex_dsmr/actions?query=workflow%3Atest)
 
@@ -10,12 +10,12 @@ A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
 
 ## Installation
 
-Add `dsmr` to your list of dependencies in `mix.exs`:
+Add `ex_dsmr` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:dsmr, "~> 0.1.0"}
+    {:ex_dsmr, "~> 0.1.0"}
   ]
 end
 ```

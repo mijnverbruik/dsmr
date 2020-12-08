@@ -4,5 +4,5 @@
 /cover/
 /deps/
 /doc/
-/dsmr-*.tar
 /erl_crash.dump
+/ex_dsmr-*.tar

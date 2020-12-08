@@ -6,7 +6,7 @@ defmodule DSMR.MixProject do
 
   def project do
     [
-      app: :dsmr,
+      app: :ex_dsmr,
       version: @version,
       elixir: "~> 1.6",
       deps: deps(),
@@ -27,6 +27,7 @@ defmodule DSMR.MixProject do
 
   defp deps do
     [
+      {:ex_doc, "~> 0.15", only: :dev},
       {:nimble_parsec, "~> 1.1"},
       {:timex, "~> 3.6"}
     ]
