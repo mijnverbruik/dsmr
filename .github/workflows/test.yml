@@ -6,27 +6,45 @@ on:
 
 jobs:
   test:
+    name: mix test (Elixir ${{matrix.elixir}} | Erlang/OTP ${{matrix.otp}})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: 1.6.6
+            otp: 19.3.6.13
+          - elixir: 1.7.4
+            otp: 19.3.6.13
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+          - elixir: 1.9.4
+            otp: 20.3.8.26
+            # not 1.10 as its --warnings-as-errors has bugs https://github.com/elixir-lang/elixir/issues/10073
+            warnings_as_errors: true
+          - elixir: 1.10.4
+            otp: 21.3.8.16
+          - elixir: 1.10.4
+            otp: 23.0.3
+            check_formatted: true
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Setup Elixir
-        uses: actions/setup-elixir@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-elixir@v1
         with:
-          otp-version: 23.0
-          elixir-version: 1.10.3
-
-      - name: Cache Mix dependencies
-        uses: actions/cache@v2
-        with:
-          path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-mix-
-
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+      - name: Check formatting
+        run: mix format --check-formatted
+        if: matrix.check_formatted
       - name: Install dependencies
-        run: mix deps.get
-
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get --only test
       - name: Execute tests
         run: mix test
+      - name: Compile without warnings
+        run: MIX_ENV=test mix compile --warnings-as-errors
+        if: matrix.warnings_as_errors
