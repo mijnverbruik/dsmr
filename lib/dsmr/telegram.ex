@@ -2,6 +2,8 @@ defmodule DSMR.Telegram do
   @moduledoc false
   defstruct header: nil, checksum: nil, data: []
 
+  @type t() :: %__MODULE__{}
+
   defmodule OBIS do
     @moduledoc false
     defstruct code: nil, medium: nil, channel: nil, tags: nil
