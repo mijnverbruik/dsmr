@@ -11,18 +11,19 @@ defmodule DSMR do
   end
 
   defp create_telegram(parsed) do
-    telegram = Enum.reduce(parsed, %Telegram{}, fn line, telegram ->
-      case line do
-        {:header, header} ->
-          %{telegram | header: Telegram.Header.new(header)}
+    telegram =
+      Enum.reduce(parsed, %Telegram{}, fn line, telegram ->
+        case line do
+          {:header, header} ->
+            %{telegram | header: Telegram.Header.new(header)}
 
-        {:cosem, cosem} ->
-          %{telegram | data: telegram.data ++ [Telegram.COSEM.new(cosem)]}
+          {:cosem, cosem} ->
+            %{telegram | data: telegram.data ++ [Telegram.COSEM.new(cosem)]}
 
-        {:footer, checksum} ->
-          %{telegram | checksum: Telegram.Checksum.new(checksum)}
-      end
-    end)
+          {:footer, checksum} ->
+            %{telegram | checksum: Telegram.Checksum.new(checksum)}
+        end
+      end)
 
     {:ok, telegram}
   end
