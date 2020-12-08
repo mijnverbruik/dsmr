@@ -27,7 +27,6 @@ defmodule DSMR.Telegram do
 
     defp interpretet_tags([0, 2, 8]), do: [general: :version]
     defp interpretet_tags([1, 0, 0]), do: [general: :timestamp]
-    defp interpretet_tags([1, 0, 0]), do: [general: :timestamp]
     defp interpretet_tags([96, 1, 1]), do: [general: :equipment_identifier]
     defp interpretet_tags([96, 14, 0]), do: [general: :tariff_indicator]
     defp interpretet_tags([1, 8, 1]), do: [energy: :total, direction: :consume, tariff: :low]
