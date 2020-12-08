@@ -1,4 +1,8 @@
 defmodule DSMR do
+  @moduledoc """
+  A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
+  """
+
   alias DSMR.Telegram
 
   def parse(string) do
