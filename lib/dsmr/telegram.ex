@@ -1,11 +1,20 @@
 defmodule DSMR.Telegram do
-  @moduledoc false
+  @type t() :: %__MODULE__{
+          header: DSMR.Telegram.Header.t(),
+          checksum: DSMR.Telegram.Checksum.t(),
+          data: [DSMR.Telegram.COSEM.t()]
+        }
+
   defstruct header: nil, checksum: nil, data: []
 
-  @type t() :: %__MODULE__{}
-
   defmodule OBIS do
-    @moduledoc false
+    @type t() :: %__MODULE__{
+            code: String.t(),
+            medium: atom(),
+            channel: integer(),
+            tags: [keyword()]
+          }
+
     defstruct code: nil, medium: nil, channel: nil, tags: nil
 
     def new({:obis, code}) do
@@ -67,7 +76,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Value do
-    @moduledoc false
+    @type t() :: %__MODULE__{value: String.t(), unit: String.t()}
+
     defstruct value: nil, unit: nil
 
     def new({:value, [{_type, value}, unit: unit]}) do
@@ -80,7 +90,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule COSEM do
-    @moduledoc false
+    @type t() :: %__MODULE__{obis: OBIS.t(), values: [Value.t()]}
+
     defstruct obis: nil, values: []
 
     def new([obis | values]) do
@@ -92,7 +103,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Header do
-    @moduledoc false
+    @type t() :: %__MODULE__{manufacturer: String.t(), model: String.t()}
+
     defstruct manufacturer: nil, model: nil
 
     def new([{:manufacturer, manufacturer}, {:model, model}]) do
@@ -101,7 +113,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Checksum do
-    @moduledoc false
+    @type t() :: %__MODULE__{value: String.t()}
+
     defstruct value: nil
 
     def new(checksum) do
