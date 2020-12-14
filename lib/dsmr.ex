@@ -51,8 +51,17 @@ defmodule DSMR do
           {:header, header} ->
             %{telegram | header: Telegram.Header.new(header)}
 
+          {:cosem, [{:obis, [0, channel, 24, 1, 0]} | _value] = mbus} ->
+            append_mbus(telegram, channel, mbus)
+
+          {:cosem, [{:obis, [0, channel, 96, 1, 0]} | _value] = mbus} ->
+            append_mbus(telegram, channel, mbus)
+
+          {:cosem, [{:obis, [0, channel, 24, 2, 1]} | _values] = mbus} ->
+            append_mbus(telegram, channel, mbus)
+
           {:cosem, cosem} ->
-            %{telegram | data: telegram.data ++ [Telegram.COSEM.new(cosem)]}
+            append_cosem(telegram, cosem)
 
           {:footer, checksum} ->
             %{telegram | checksum: Telegram.Checksum.new(checksum)}
@@ -61,4 +70,29 @@ defmodule DSMR do
 
     {:ok, telegram}
   end
+
+  defp append_cosem(telegram, cosem) do
+    %{telegram | data: telegram.data ++ [Telegram.COSEM.new(cosem)]}
+  end
+
+  defp append_mbus(telegram, channel, cosem) do
+    if index = find_mbus_index(telegram.data, channel) do
+      new_mbus = Telegram.MBus.new(channel, cosem)
+
+      mbus = Enum.fetch!(telegram.data, index)
+      mbus = %{mbus | data: mbus.data ++ new_mbus.data}
+
+      %{telegram | data: List.replace_at(telegram.data, index, mbus)}
+    else
+      mbus = Telegram.MBus.new(channel, cosem)
+      %{telegram | data: telegram.data ++ [mbus]}
+    end
+  end
+
+  defp find_mbus_index(data, channel) when is_list(data) do
+    Enum.find_index(data, &find_mbus_index(&1, channel))
+  end
+
+  defp find_mbus_index(%Telegram.MBus{} = mbus, channel), do: mbus.channel == channel
+  defp find_mbus_index(_cosem, _channel), do: false
 end

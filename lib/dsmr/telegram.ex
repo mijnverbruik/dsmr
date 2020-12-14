@@ -2,7 +2,7 @@ defmodule DSMR.Telegram do
   @type t() :: %__MODULE__{
           header: DSMR.Telegram.Header.t(),
           checksum: DSMR.Telegram.Checksum.t(),
-          data: [DSMR.Telegram.COSEM.t()]
+          data: [DSMR.Telegram.COSEM.t() | DSMR.Telegram.MBus.t()]
         }
 
   defstruct header: nil, checksum: nil, data: []
@@ -100,6 +100,16 @@ defmodule DSMR.Telegram do
       values = Enum.map(values, &Value.new/1)
 
       %COSEM{obis: obis, values: values}
+    end
+  end
+
+  defmodule MBus do
+    @type t() :: %__MODULE__{channel: integer(), data: [DSMR.Telegram.COSEM.t()]}
+
+    defstruct channel: nil, data: []
+
+    def new(channel, cosem) do
+      %MBus{channel: channel, data: [COSEM.new(cosem)]}
     end
   end
 

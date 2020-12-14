@@ -10,9 +10,10 @@ defmodule DSMR.Parser do
   defp format_value({:integer, value}), do: [{:integer, String.to_integer(value)}, {:raw, value}]
 
   defp format_value({:timestamp, <<timestamp::binary-size(12), _dst::binary-size(1)>> = value}) do
-    timestamp
-    |> Timex.parse!("%y%0m%0d%H%M%S", :strftime)
-    |> Timex.to_datetime("Europe/Amsterdam")
+    timestamp =
+      timestamp
+      |> Timex.parse!("%y%0m%0d%H%M%S", :strftime)
+      |> Timex.to_datetime("Europe/Amsterdam")
 
     [{:timestamp, timestamp}, {:raw, value}]
   end
