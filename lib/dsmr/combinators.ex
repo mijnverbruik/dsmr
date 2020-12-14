@@ -93,7 +93,6 @@ defmodule DSMR.Combinators do
   def number do
     choice([float(), int()])
     |> lookahead_not(letters())
-    |> map(:format_number)
     |> label("number")
     |> optional(unit() |> unwrap_and_tag(:unit))
   end
@@ -111,7 +110,6 @@ defmodule DSMR.Combinators do
     |> times(12)
     |> utf8_char([?S, ?W])
     |> reduce({List, :to_string, []})
-    |> map(:format_timestamp)
     |> unwrap_and_tag(:timestamp)
     |> label("timestamp")
   end
@@ -120,6 +118,7 @@ defmodule DSMR.Combinators do
     ignore(left_paren())
     |> choice([timestamp(), obis(), number(), text()])
     |> ignore(right_paren())
+    |> map(:format_value)
     |> label("value")
   end
 
