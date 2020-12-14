@@ -18,7 +18,7 @@ defmodule DSMR.Telegram do
     defstruct code: nil, medium: nil, channel: nil, tags: nil
 
     def new({:obis, [medium, channel | tags]}) do
-      code = "#{medium}-#{channel}:#{Enum.join(tags, ":")}"
+      code = "#{medium}-#{channel}:#{Enum.join(tags, ".")}"
 
       medium = interpretet_medium(medium)
       tags = interpretet_tags(tags)
