@@ -76,7 +76,7 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Value do
-    @type t() :: %__MODULE__{value: String.t(), unit: String.t()}
+    @type t() :: %__MODULE__{value: integer() | float() | String.t(), unit: String.t()}
 
     defstruct value: nil, unit: nil
 
