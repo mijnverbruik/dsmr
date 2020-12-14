@@ -47,19 +47,26 @@ defmodule DSMR.Combinators do
     |> label("letters")
   end
 
+  def obis_digit(combinator \\ empty()) do
+    combinator
+    |> concat(
+      digits()
+      |> times(min: 1)
+      |> reduce({List, :to_integer, []})
+    )
+  end
+
   def obis do
-    digits()
-    |> times(min: 1)
-    |> utf8_char([?-])
-    |> times(digits(), min: 1)
-    |> utf8_char([?:])
-    |> times(digits(), min: 1)
-    |> utf8_char([?.])
-    |> times(digits(), min: 1)
-    |> utf8_char([?.])
-    |> times(digits(), min: 1)
-    |> reduce({List, :to_string, []})
-    |> unwrap_and_tag(:obis)
+    obis_digit()
+    |> ignore(utf8_char([?-]))
+    |> obis_digit()
+    |> ignore(utf8_char([?:]))
+    |> obis_digit()
+    |> ignore(utf8_char([?.]))
+    |> obis_digit()
+    |> ignore(utf8_char([?.]))
+    |> obis_digit()
+    |> tag(:obis)
     |> label("obis")
   end
 
