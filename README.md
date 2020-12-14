@@ -17,7 +17,7 @@ Add `ex_dsmr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_dsmr, "~> 0.2.0"}
+    {:ex_dsmr, "~> 0.2.1"}
   ]
 end
 ```
