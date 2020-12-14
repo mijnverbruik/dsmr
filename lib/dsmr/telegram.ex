@@ -76,16 +76,20 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Value do
-    @type t() :: %__MODULE__{value: integer() | float() | String.t(), unit: String.t()}
+    @type t() :: %__MODULE__{
+            value: integer() | float() | String.t(),
+            raw: String.t(),
+            unit: String.t()
+          }
 
-    defstruct value: nil, unit: nil
+    defstruct value: nil, raw: nil, unit: nil
 
-    def new({:value, [{_type, value}, unit: unit]}) do
-      %Value{value: value, unit: unit}
+    def new({:value, [[{_type, value}, {:raw, raw}], unit: unit]}) do
+      %Value{value: value, raw: raw, unit: unit}
     end
 
-    def new({:value, [{_type, value}]}) do
-      %Value{value: value}
+    def new({:value, [[{_type, value}, {:raw, raw}]]}) do
+      %Value{value: value, raw: raw}
     end
   end
 
