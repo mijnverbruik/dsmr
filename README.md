@@ -12,7 +12,7 @@ A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
 
 ## Installation
 
-Add `ex_dsmr` to your list of dependencies in `mix.exs`:
+Add `dsmr` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
