@@ -1,8 +1,8 @@
 # ex_dsmr
 
 [![Build Status](https://img.shields.io/github/workflow/status/webstronauts/ex_dsmr/test.svg?style=flat-square)](https://github.com/webstronauts/ex_dsmr/actions?query=workflow%3Atest)
-[![Hex.pm](https://img.shields.io/hexpm/v/ex_dsmr.svg?style=flat-square)](https://hex.pm/packages/ex_dsmr)
-[![Hexdocs.pm](https://img.shields.io/badge/hex-docs-blue.svg?style=flat-square)](https://hexdocs.pm/ex_dsmr/)
+[![Hex.pm](https://img.shields.io/hexpm/v/dsmr.svg?style=flat-square)](https://hex.pm/packages/dsmr)
+[![Hexdocs.pm](https://img.shields.io/badge/hex-docs-blue.svg?style=flat-square)](https://hexdocs.pm/dsmr/)
 
 A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
 
@@ -17,7 +17,7 @@ Add `ex_dsmr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_dsmr, "~> 0.2.1"}
+    {:dsmr, "~> 0.3.0"}
   ]
 end
 ```

@@ -3,19 +3,19 @@ defmodule DSMRTest do
 
   describe "parse/1" do
     test "parses DSMR v2.2 telegrams" do
-      assert {:ok, result} = DSMR.parse(telegram_v2_2())
+      assert {:ok, _result} = DSMR.parse(telegram_v2_2())
     end
 
     test "parses DSMR v3.0 telegrams" do
-      assert {:ok, result} = DSMR.parse(telegram_v3_0())
+      assert {:ok, _result} = DSMR.parse(telegram_v3_0())
     end
 
     test "parses DSMR v4.2 telegrams" do
-      assert {:ok, result} = DSMR.parse(telegram_v4_2())
+      assert {:ok, _result} = DSMR.parse(telegram_v4_2())
     end
 
     test "parses DSMR v5.0 telegrams" do
-      assert {:ok, result} = DSMR.parse(telegram_v5_0())
+      assert {:ok, _result} = DSMR.parse(telegram_v5_0())
     end
 
     test "returns a DSMR.ParseError when an invalid telegram is passed" do

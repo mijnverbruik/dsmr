@@ -1,12 +1,12 @@
 defmodule DSMR.MixProject do
   use Mix.Project
 
-  @version "0.2.1"
+  @version "0.3.0"
   @url "https://github.com/webstronauts/ex_dsmr"
 
   def project do
     [
-      app: :ex_dsmr,
+      app: :dsmr,
       version: @version,
       elixir: "~> 1.6",
       deps: deps(),
