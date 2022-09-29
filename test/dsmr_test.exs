@@ -3,11 +3,11 @@ defmodule DSMRTest do
 
   describe "parse/1" do
     test "parses DSMR v2.2 telegrams" do
-      assert {:ok, _result} = DSMR.parse(telegram_v2_2())
+      assert {:ok, _result} = DSMR.parse(telegram_v2_2(), checksum: false)
     end
 
     test "parses DSMR v3.0 telegrams" do
-      assert {:ok, _result} = DSMR.parse(telegram_v3_0())
+      assert {:ok, _result} = DSMR.parse(telegram_v3_0(), checksum: false)
     end
 
     test "parses DSMR v4.2 telegrams" do
@@ -18,15 +18,25 @@ defmodule DSMRTest do
       assert {:ok, _result} = DSMR.parse(telegram_v5_0())
     end
 
+    test "returns a DSMR.ChecksumError when an invalid checksum is passed" do
+      assert {:error, %DSMR.ChecksumError{}} = DSMR.parse("invalid!foo")
+    end
+
     test "returns a DSMR.ParseError when an invalid telegram is passed" do
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse("invalid")
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse("invalid", checksum: false)
     end
   end
 
   describe "parse!/1" do
+    test "raises a DSMR.ChecksumError when an invalid telegram is passed" do
+      assert_raise DSMR.ChecksumError, fn ->
+        DSMR.parse!("invalid!foo")
+      end
+    end
+
     test "raises a DSMR.ParseError when an invalid telegram is passed" do
       assert_raise DSMR.ParseError, fn ->
-        DSMR.parse!("invalid")
+        DSMR.parse!("invalid", checksum: false)
       end
     end
   end
