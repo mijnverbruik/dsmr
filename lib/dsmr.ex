@@ -3,7 +3,13 @@ defmodule DSMR do
   A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
   """
 
-  alias DSMR.Telegram
+  alias DSMR.{CRC16, Telegram}
+
+  defmodule ChecksumError do
+    @type t() :: %__MODULE__{}
+
+    defexception [:message]
+  end
 
   defmodule ParseError do
     @type t() :: %__MODULE__{}
@@ -19,12 +25,18 @@ defmodule DSMR do
   function returns `{:error, parse_error}` where `parse_error` is a `DSMR.ParseError` struct.
   You can use `raise/1` with that struct or `Exception.message/1` to turn it into a string.
   """
-  @spec parse(String.t()) :: {:ok, Telegram.t()} | {:error, ParseError.t()}
-  def parse(string) do
-    with {:ok, parsed, "", _, _, _} <- DSMR.Parser.telegram_parser(string),
+  @spec parse(String.t(), keyword()) :: {:ok, Telegram.t()} | {:error, ParseError.t()}
+  def parse(string, opts \\ []) do
+    validate_checksum = Keyword.get(opts, :checksum, true)
+
+    with :ok <- valid_checksum?(string, validate_checksum),
+         {:ok, parsed, "", _, _, _} <- DSMR.Parser.telegram_parser(string),
          {:ok, telegram} <- create_telegram(parsed) do
       {:ok, telegram}
     else
+      {:error, %ChecksumError{} = error} ->
+        {:error, error}
+
       _ ->
         {:error, %ParseError{message: "Could not parse #{inspect(string)}."}}
     end
@@ -34,13 +46,13 @@ defmodule DSMR do
   Parses telegram data from a string and raises if the data cannot be parsed.
 
   This function behaves exactly like `parse/1`, but returns the telegram directly
-  if parsed successfully or raises a `DSMR.ParseError` exception otherwise.
+  if parsed successfully or raises an exception otherwise.
   """
-  @spec parse!(String.t()) :: Telegram.t()
-  def parse!(string) do
-    case parse(string) do
+  @spec parse!(String.t(), keyword()) :: Telegram.t()
+  def parse!(string, opts \\ []) do
+    case parse(string, opts) do
       {:ok, telegram} -> telegram
-      {:error, %ParseError{} = error} -> raise error
+      {:error, error} -> raise error
     end
   end
 
@@ -95,4 +107,16 @@ defmodule DSMR do
 
   defp find_mbus_index(%Telegram.MBus{} = mbus, channel), do: mbus.channel == channel
   defp find_mbus_index(_cosem, _channel), do: false
+
+  defp valid_checksum?(_string, false), do: :ok
+
+  defp valid_checksum?(string, _) do
+    [telegram, checksum] = String.split(string, "!")
+
+    if CRC16.checksum(telegram <> "!") === String.trim(checksum) do
+      :ok
+    else
+      {:error, %ChecksumError{message: "Incorrect checksum"}}
+    end
+  end
 end
