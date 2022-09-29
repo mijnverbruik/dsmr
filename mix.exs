@@ -29,7 +29,7 @@ defmodule DSMR.MixProject do
     [
       {:ex_doc, "~> 0.15", only: :dev},
       {:nimble_parsec, "~> 1.1"},
-      {:timex, "~> 3.6"}
+      {:timex, "~> 3.6.4"}
     ]
   end
 
