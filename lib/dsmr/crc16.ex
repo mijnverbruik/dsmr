@@ -13,7 +13,7 @@ defmodule DSMR.CRC16 do
 
   defp update(crc, <<>>), do: crc
 
-  defp update(crc, <<c, b::binary()>>) do
+  defp update(crc, <<c, b::binary>>) do
     update(do_update(crc, c, 0), b)
   end
 
