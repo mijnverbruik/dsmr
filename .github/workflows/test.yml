@@ -14,9 +14,9 @@ jobs:
       matrix:
         include:
           - elixir: '1.11'
-            otp: '23.3'
+            otp: '23'
           - elixir: '1.15'
-            otp: '26.0'
+            otp: '26'
             check_formatted: true
 
     steps:
