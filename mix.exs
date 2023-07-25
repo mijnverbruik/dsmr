@@ -27,7 +27,7 @@ defmodule DSMR.MixProject do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.15", only: :dev},
+      {:ex_doc, "~> 0.15", only: [:dev, :test], runtime: false},
       {:nimble_parsec, "~> 1.1"},
       {:timex, "~> 3.6.4"}
     ]
