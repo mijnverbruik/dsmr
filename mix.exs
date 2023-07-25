@@ -8,7 +8,7 @@ defmodule DSMR.MixProject do
     [
       app: :dsmr,
       version: @version,
-      elixir: "~> 1.7",
+      elixir: "~> 1.11",
       deps: deps(),
 
       # Hex
