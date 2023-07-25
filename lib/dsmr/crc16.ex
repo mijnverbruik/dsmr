@@ -1,7 +1,7 @@
 defmodule DSMR.CRC16 do
   @moduledoc false
 
-  use Bitwise
+  import Bitwise
 
   @polynomial 0xA001
 
