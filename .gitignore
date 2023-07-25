@@ -1,5 +1,6 @@
 /*.ez
 /.fetch
+/.tool-versions
 /_build/
 /cover/
 /deps/
