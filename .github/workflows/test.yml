@@ -50,5 +50,8 @@ jobs:
       - run: mix compile --warnings-as-errors
         if: ${{ matrix.lint }}
 
+      - run: mix credo --strict
+        if: ${{ matrix.lint }}
+
       - name: Run mix test
         run: mix test

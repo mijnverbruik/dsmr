@@ -27,6 +27,7 @@ defmodule DSMR.MixProject do
 
   defp deps do
     [
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.15", only: [:dev, :test], runtime: false},
       {:nimble_parsec, "~> 1.1"},
       {:timex, "~> 3.6.4"}

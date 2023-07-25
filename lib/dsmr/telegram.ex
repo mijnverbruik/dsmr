@@ -1,4 +1,6 @@
 defmodule DSMR.Telegram do
+  @moduledoc false
+
   @type t() :: %__MODULE__{
           header: DSMR.Telegram.Header.t(),
           checksum: DSMR.Telegram.Checksum.t(),
@@ -8,6 +10,8 @@ defmodule DSMR.Telegram do
   defstruct header: nil, checksum: nil, data: []
 
   defmodule OBIS do
+    @moduledoc false
+
     @type t() :: %__MODULE__{
             code: String.t(),
             medium: atom(),
@@ -73,6 +77,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Value do
+    @moduledoc false
+
     @type t() :: %__MODULE__{
             value: integer() | float() | String.t(),
             raw: String.t(),
@@ -91,6 +97,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule COSEM do
+    @moduledoc false
+
     @type t() :: %__MODULE__{obis: OBIS.t(), values: [Value.t()]}
 
     defstruct obis: nil, values: []
@@ -104,6 +112,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule MBus do
+    @moduledoc false
+
     @type t() :: %__MODULE__{channel: integer(), data: [DSMR.Telegram.COSEM.t()]}
 
     defstruct channel: nil, data: []
@@ -114,6 +124,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Header do
+    @moduledoc false
+
     @type t() :: %__MODULE__{manufacturer: String.t(), model: String.t()}
 
     defstruct manufacturer: nil, model: nil
@@ -124,6 +136,8 @@ defmodule DSMR.Telegram do
   end
 
   defmodule Checksum do
+    @moduledoc false
+
     @type t() :: %__MODULE__{value: String.t()}
 
     defstruct value: nil

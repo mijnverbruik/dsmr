@@ -41,7 +41,7 @@ defmodule DSMRTest do
     end
   end
 
-  defp telegram_v2_2() do
+  defp telegram_v2_2 do
     Enum.join([
       "/ISk5\\2MT382-1004\r\n",
       "\r\n",
@@ -66,7 +66,7 @@ defmodule DSMRTest do
     ])
   end
 
-  defp telegram_v3_0() do
+  defp telegram_v3_0 do
     Enum.join([
       "/ISk5\\2MT382-1000\r\n",
       "\r\n",
@@ -93,7 +93,7 @@ defmodule DSMRTest do
     ])
   end
 
-  defp telegram_v4_2() do
+  defp telegram_v4_2 do
     Enum.join([
       "/KFM5KAIFA-METER\r\n",
       "\r\n",
@@ -135,7 +135,7 @@ defmodule DSMRTest do
     ])
   end
 
-  defp telegram_v5_0() do
+  defp telegram_v5_0 do
     Enum.join(
       [
         "/ISk5\\2MT382-1000\r\n",
