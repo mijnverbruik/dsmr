@@ -3,120 +3,39 @@ defmodule DSMR do
   A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
   """
 
-  alias DSMR.{CRC16, Telegram}
-
   defmodule ChecksumError do
-    @type t() :: %__MODULE__{}
+    defexception [:checksum]
 
-    defexception [:message]
-  end
-
-  defmodule ParseError do
-    @type t() :: %__MODULE__{}
-
-    defexception [:message]
+    @impl true
+    def message(_exception), do: "checksum mismatch"
   end
 
   @doc """
   Parses telegram data from a string and returns a struct.
-
-  If the telegram is parsed successfully, this function returns `{:ok, telegram}`
-  where `telegram` is a `DSMR.Telegram` struct. If the parsing fails, this
-  function returns `{:error, parse_error}` where `parse_error` is a `DSMR.ParseError` struct.
-  You can use `raise/1` with that struct or `Exception.message/1` to turn it into a string.
   """
-  @spec parse(String.t(), keyword()) :: {:ok, Telegram.t()} | {:error, ParseError.t()}
-  def parse(string, opts \\ []) do
-    validate_checksum = Keyword.get(opts, :checksum, true)
+  @spec parse(binary(), keyword()) :: {:ok, DSMR.Telegram.t()} | {:error, any()}
+  def parse(string, options \\ []) when is_binary(string) and is_list(options) do
+    validate_checksum = Keyword.get(options, :checksum, true)
 
-    with :ok <- valid_checksum?(string, validate_checksum),
-         {:ok, parsed, "", _, _, _} <- DSMR.Parser.telegram_parser(string),
-         {:ok, telegram} <- create_telegram(parsed) do
+    with {:ok, tokens} <- DSMR.Lexer.tokenize(string, options),
+         {:ok, telegram} <- :dsmr_parser.parse(tokens),
+         :ok <- valid_checksum?(telegram, string, validate_checksum) do
       {:ok, telegram}
-    else
-      {:error, %ChecksumError{} = error} ->
-        {:error, error}
-
-      _ ->
-        {:error, %ParseError{message: "Could not parse #{inspect(string)}."}}
     end
   end
 
-  @doc """
-  Parses telegram data from a string and raises if the data cannot be parsed.
+  defp valid_checksum?(_telegram, _string, false), do: :ok
+  # @TODO Only skip empty checksums when telegram version does not require it.
+  defp valid_checksum?(%DSMR.Telegram{checksum: ""}, _string, _), do: :ok
 
-  This function behaves exactly like `parse/1`, but returns the telegram directly
-  if parsed successfully or raises an exception otherwise.
-  """
-  @spec parse!(String.t(), keyword()) :: Telegram.t()
-  def parse!(string, opts \\ []) do
-    case parse(string, opts) do
-      {:ok, telegram} -> telegram
-      {:error, error} -> raise error
-    end
-  end
+  defp valid_checksum?(%DSMR.Telegram{} = telegram, string, _) do
+    [raw, _rest] = String.split(string, "!")
+    checksum = DSMR.CRC16.checksum(raw <> "!")
 
-  defp create_telegram(parsed) do
-    telegram =
-      Enum.reduce(parsed, %Telegram{}, fn line, telegram ->
-        case line do
-          {:header, header} ->
-            %{telegram | header: Telegram.Header.new(header)}
-
-          {:cosem, [{:obis, [0, channel, 24, 1, 0]} | _value] = mbus} ->
-            append_mbus(telegram, channel, mbus)
-
-          {:cosem, [{:obis, [0, channel, 96, 1, 0]} | _value] = mbus} ->
-            append_mbus(telegram, channel, mbus)
-
-          {:cosem, [{:obis, [0, channel, 24, 2, 1]} | _values] = mbus} ->
-            append_mbus(telegram, channel, mbus)
-
-          {:cosem, cosem} ->
-            append_cosem(telegram, cosem)
-
-          {:footer, checksum} ->
-            %{telegram | checksum: Telegram.Checksum.new(checksum)}
-        end
-      end)
-
-    {:ok, telegram}
-  end
-
-  defp append_cosem(telegram, cosem) do
-    %{telegram | data: telegram.data ++ [Telegram.COSEM.new(cosem)]}
-  end
-
-  defp append_mbus(telegram, channel, cosem) do
-    if index = find_mbus_index(telegram.data, channel) do
-      new_mbus = Telegram.MBus.new(channel, cosem)
-
-      mbus = Enum.fetch!(telegram.data, index)
-      mbus = %{mbus | data: mbus.data ++ new_mbus.data}
-
-      %{telegram | data: List.replace_at(telegram.data, index, mbus)}
-    else
-      mbus = Telegram.MBus.new(channel, cosem)
-      %{telegram | data: telegram.data ++ [mbus]}
-    end
-  end
-
-  defp find_mbus_index(data, channel) when is_list(data) do
-    Enum.find_index(data, &find_mbus_index(&1, channel))
-  end
-
-  defp find_mbus_index(%Telegram.MBus{} = mbus, channel), do: mbus.channel == channel
-  defp find_mbus_index(_cosem, _channel), do: false
-
-  defp valid_checksum?(_string, false), do: :ok
-
-  defp valid_checksum?(string, _) do
-    [telegram, checksum] = String.split(string, "!")
-
-    if CRC16.checksum(telegram <> "!") === String.trim(checksum) do
+    if checksum === telegram.checksum do
       :ok
     else
-      {:error, %ChecksumError{message: "Incorrect checksum"}}
+      {:error, %ChecksumError{checksum: checksum}}
     end
   end
 end

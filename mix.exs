@@ -1,52 +1,49 @@
 defmodule DSMR.MixProject do
   use Mix.Project
 
+  @source_url "https://github.com/webstronauts/ex_dsmr"
   @version "0.3.0"
-  @url "https://github.com/webstronauts/ex_dsmr"
 
   def project do
     [
       app: :dsmr,
       version: @version,
       elixir: "~> 1.11",
-      deps: deps(),
-
-      # Hex
-      package: package(),
-      description: "A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data",
-
-      # Docs
       name: "DSMR",
-      docs: docs()
+      description: "A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data",
+      compilers: compilers(),
+      deps: deps(),
+      docs: docs(),
+      package: package()
     ]
   end
 
-  def application do
-    [extra_applications: [:logger]]
+  defp compilers do
+    [:yecc] ++ Mix.compilers()
   end
 
   defp deps do
     [
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.30", only: [:dev, :test], runtime: false},
-      {:nimble_parsec, "~> 1.3"},
-      {:timex, "~> 3.7.8"}
+      {:benchee, "~> 1.3", only: :dev},
+      {:decimal, "~> 2.0", optional: true},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:nimble_parsec, "~> 1.4"}
     ]
   end
 
-  defp docs() do
+  defp docs do
     [
       main: "DSMR",
       source_ref: "v#{@version}",
-      source_url: @url
+      source_url: @source_url
     ]
   end
 
   defp package() do
     [
+      licenses: ["Apache-2.0"],
       maintainers: ["Robin van der Vleuten"],
-      licenses: ["Apache 2"],
-      links: %{"GitHub" => @url}
+      links: %{"GitHub" => @source_url}
     ]
   end
 end

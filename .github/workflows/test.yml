@@ -1,12 +1,14 @@
 name: test
 
 on:
-  push: {branches: main}
-  pull_request: {branches: main}
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       MIX_ENV: test
 
@@ -14,9 +16,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: '1.11'
-            otp: 23
-          - elixir: '1.15'
+          - elixir: 1.12.x
+            otp: 22
+          - elixir: 1.16.x
             otp: 26
             lint: lint
 
@@ -37,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-
 
-      - run: mix deps.get --only test
+      - run: mix deps.get --check-locked
 
       - run: mix format --check-formatted
         if: ${{ matrix.lint }}
