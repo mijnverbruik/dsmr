@@ -1,8 +1,10 @@
 name: test
 
 on:
-  push: {branches: main}
-  pull_request: {branches: main}
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
   test:
@@ -14,10 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: '1.11'
-            otp: 23
-          - elixir: '1.15'
-            otp: 26
+          - elixir: 1.12.x
+            otp: 22.3.x
+          - elixir: 1.16.x
+            otp: 26.2.x
             lint: lint
 
     steps:
@@ -37,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-
 
-      - run: mix deps.get --only test
+      - run: mix deps.get --check-locked
 
       - run: mix format --check-formatted
         if: ${{ matrix.lint }}
@@ -48,9 +50,6 @@ jobs:
       - run: mix deps.compile
 
       - run: mix compile --warnings-as-errors
-        if: ${{ matrix.lint }}
-
-      - run: mix credo --strict
         if: ${{ matrix.lint }}
 
       - name: Run mix test

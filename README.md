@@ -68,7 +68,7 @@ telegram =
   ])
 
 DSMR.parse(telegram)
-#=> {:ok, %DSMR.Telegram{checksum: %DSMR.Telegram.Checksum{value: "6796"}, data: [%DSMR.Telegram.COSEM{obis: %DSMR.Telegram.OBIS{channel: 3, code: "1-3:0.2.8", medium: :electricity, tags: [general: :version]}, values: [%DSMR.Telegram.Value{unit: nil, value: 42}]}, ...]}
+#=> {:ok, %DSMR.Telegram{checksum: "6796", data: [{[1, 3, 0, 2 , 8], "42"}, ...]}
 ```
 
 See the [online documentation](https://hexdocs.pm/dsmr) for more information.
