@@ -1,8 +1,8 @@
 defmodule DSMR.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/mijnverbruik/ex_dsmr"
-  @version "0.3.0"
+  @source_url "https://github.com/mijnverbruik/dsmr"
+  @version "0.4.0"
 
   def project do
     [
@@ -46,6 +46,15 @@ defmodule DSMR.MixProject do
 
   defp package() do
     [
+      files: [
+        "lib",
+        "src/dsmr_parser.yrl",
+        "mix.exs",
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md",
+        ".formatter.exs"
+      ],
       licenses: ["Apache-2.0"],
       maintainers: ["Robin van der Vleuten"],
       links: %{"GitHub" => @source_url}

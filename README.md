@@ -1,6 +1,6 @@
 # DSMR
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/mijnverbruik/ex_dsmr/test.yml?branch=main&style=flat-square)](https://github.com/mijnverbruik/ex_dsmr/actions?query=workflow%3Atest)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/mijnverbruik/dsmr/test.yml?branch=main&style=flat-square)](https://github.com/mijnverbruik/dsmr/actions?query=workflow%3Atest)
 [![Hex.pm](https://img.shields.io/hexpm/v/dsmr.svg?style=flat-square)](https://hex.pm/packages/dsmr)
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-blue.svg?style=flat-square)](https://hexdocs.pm/dsmr/)
 
@@ -68,7 +68,7 @@ Add `dsmr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:dsmr, "~> 0.3.0"}
+    {:dsmr, "~> 0.4"}
   ]
 end
 ```
