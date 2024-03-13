@@ -304,7 +304,8 @@ defmodule DSMRTest do
     end
 
     test "with invalid telegram" do
-      assert DSMR.parse("invalid") == {:error, "expected ASCII character equal to \"/\""}
+      assert DSMR.parse("invalid") ==
+               {:error, %DSMR.ParseError{message: "Parsing failed at `invalid`"}}
     end
 
     test "with invalid checksum" do

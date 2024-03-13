@@ -102,8 +102,8 @@ defmodule DSMR.Lexer do
       {:ok, tokens, "", _, _, _} ->
         {:ok, tokens}
 
-      {:error, reason, _, _, _, _} ->
-        {:error, reason}
+      {:error, reason, rest, _, _, _} ->
+        {:error, reason, rest}
     end
   end
 

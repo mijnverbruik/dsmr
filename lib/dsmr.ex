@@ -3,25 +3,65 @@ defmodule DSMR do
   A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
   """
 
-  defmodule ChecksumError do
-    defexception [:checksum]
-
-    @impl true
-    def message(_exception), do: "checksum mismatch"
-  end
+  alias DSMR.{ChecksumError, ParseError, Telegram}
 
   @doc """
   Parses telegram data from a string and returns a struct.
   """
-  @spec parse(binary(), keyword()) :: {:ok, DSMR.Telegram.t()} | {:error, any()}
+  @spec parse(binary(), keyword()) :: {:ok, Telegram.t()} | {:error, any()}
   def parse(string, options \\ []) when is_binary(string) and is_list(options) do
     validate_checksum = Keyword.get(options, :checksum, true)
 
-    with {:ok, tokens} <- DSMR.Lexer.tokenize(string, options),
-         {:ok, telegram} <- :dsmr_parser.parse(tokens),
+    with {:ok, telegram} <- do_parse(string, options),
          :ok <- valid_checksum?(telegram, string, validate_checksum) do
       {:ok, telegram}
     end
+  end
+
+  defp do_parse(string, options) do
+    try do
+      case DSMR.Lexer.tokenize(string, options) do
+        {:ok, tokens} ->
+          case :dsmr_parser.parse(tokens) do
+            {:ok, telegram} ->
+              {:ok, telegram}
+
+            {:error, raw_error} ->
+              {:error, format_parse_error(raw_error)}
+          end
+
+        {:error, reason, rest} ->
+          {:error, format_parse_error({:lexer, reason, rest})}
+      end
+    rescue
+      error ->
+        {:error, format_parse_error(error)}
+    end
+  end
+
+  defp format_parse_error({_token, :dsmr_parser, msgs}) do
+    message = msgs |> Enum.map(&to_string/1) |> Enum.join("")
+    %ParseError{message: message}
+  end
+
+  defp format_parse_error({:lexer, _reason, rest}) do
+    sample_slice = String.slice(rest, 0, 10)
+    sample = if String.valid?(sample_slice), do: sample_slice, else: inspect(sample_slice)
+
+    message = "Parsing failed at `#{sample}`"
+    %ParseError{message: message}
+  end
+
+  defp format_parse_error(%{} = error) do
+    detail =
+      if is_exception(error) do
+        ": " <> Exception.message(error)
+      else
+        ""
+      end
+
+    message = "An unknown error occurred while parsing" <> detail
+    %ParseError{message: message}
   end
 
   defp valid_checksum?(_telegram, _string, false), do: :ok
