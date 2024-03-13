@@ -1,14 +1,10 @@
 # ex_dsmr
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/webstronauts/ex_dsmr/test.yml?branch=main&style=flat-square)](https://github.com/webstronauts/ex_dsmr/actions?query=workflow%3Atest)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/mijnverbruik/ex_dsmr/test.yml?branch=main&style=flat-square)](https://github.com/mijnverbruik/ex_dsmr/actions?query=workflow%3Atest)
 [![Hex.pm](https://img.shields.io/hexpm/v/dsmr.svg?style=flat-square)](https://hex.pm/packages/dsmr)
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-blue.svg?style=flat-square)](https://hexdocs.pm/dsmr/)
 
 A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
-
-<a href="https://webstronauts.com/">
-  <img src="https://webstronauts.com/badges/sponsored-by-webstronauts.svg" alt="Sponsored by The Webstronauts" width="200" height="65">
-</a>
 
 ## Installation
 
@@ -79,13 +75,31 @@ Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed re
 
 ## Contributing
 
-Clone the repository and run `mix test`. To generate docs, run `mix docs`.
+Everyone is encouraged to help improve this project. Here are a few ways you can help:
 
-## Credits
+- [Report bugs](https://github.com/mijnverbruik/dsmr/issues)
+- Fix bugs and [submit pull requests](https://github.com/mijnverbruik/dsmr/pulls)
+- Write, clarify, or fix documentation
+- Suggest or add new features
 
-- [Robin van der Vleuten](https://github.com/robinvdvleuten)
-- [All Contributors](../../contributors)
+To get started with development:
+
+```
+git clone https://github.com/mijnverbruik/dsmr.git
+cd dsmr
+mix test
+```
 
 ## License
 
-The Apache License, Version 2.0 (Apache-2.0). Please see [License File](LICENSE) for more information.
+Copyright (C) 2020 Robin van der Vleuten
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

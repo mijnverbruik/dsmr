@@ -1,7 +1,7 @@
 defmodule DSMR.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/webstronauts/ex_dsmr"
+  @source_url "https://github.com/mijnverbruik/ex_dsmr"
   @version "0.3.0"
 
   def project do
