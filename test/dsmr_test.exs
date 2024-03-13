@@ -374,4 +374,17 @@ defmodule DSMRTest do
                 }}
     end
   end
+
+  describe "parse!/2" do
+    test "with valid telegram" do
+      assert DSMR.parse!("/empty\r\n\r\n!0039\r\n") ==
+               %DSMR.Telegram{header: "empty", checksum: "0039", data: []}
+    end
+
+    test "with invalid telegram" do
+      assert_raise DSMR.ParseError, "Parsing failed at `invalid`", fn ->
+        DSMR.parse!("invalid")
+      end
+    end
+  end
 end

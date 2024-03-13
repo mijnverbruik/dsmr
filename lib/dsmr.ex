@@ -4,6 +4,8 @@ defmodule DSMR do
              |> String.split("<!-- MDOC !-->")
              |> Enum.fetch!(1)
 
+  @type parse_opt :: {:checksum, boolean} | {:floats, :native | :decimals}
+
   defmodule ChecksumError do
     @type t :: %__MODULE__{checksum: binary()}
 
@@ -24,6 +26,20 @@ defmodule DSMR do
   @doc """
   Parses telegram data from a string and returns a `DSMR.Telegram` struct.
 
+  Similar to `parse/2` except it will unwrap the error tuple and raise
+  in case of errors.
+  """
+  @spec parse!(binary, [parse_opt]) :: Telegram.t() | no_return
+  def parse!(string, options \\ []) do
+    case parse(string, options) do
+      {:ok, telegram} -> telegram
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Parses telegram data from a string and returns a `DSMR.Telegram` struct.
+
   ## Options
 
     * `:checksum` - when true, the checksum will be validated, defaults to `true`.
@@ -33,7 +49,7 @@ defmodule DSMR do
       * `:native` (default) - Native conversion from binary to float using `:erlang.binary_to_float/1`,
       * `:decimals` - uses `Decimal.new/1` to parse the binary into a Decimal struct with arbitrary precision.
   """
-  @spec parse(binary(), keyword()) ::
+  @spec parse(binary, [parse_opt]) ::
           {:ok, Telegram.t()} | {:error, ParseError.t() | ChecksumError.t()}
   def parse(string, options \\ []) when is_binary(string) and is_list(options) do
     validate_checksum = Keyword.get(options, :checksum, true)
