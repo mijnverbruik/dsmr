@@ -1,22 +1,12 @@
-# ex_dsmr
+# DSMR
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/mijnverbruik/ex_dsmr/test.yml?branch=main&style=flat-square)](https://github.com/mijnverbruik/ex_dsmr/actions?query=workflow%3Atest)
 [![Hex.pm](https://img.shields.io/hexpm/v/dsmr.svg?style=flat-square)](https://hex.pm/packages/dsmr)
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-blue.svg?style=flat-square)](https://hexdocs.pm/dsmr/)
 
+<!-- MDOC !-->
+
 A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
-
-## Installation
-
-Add `dsmr` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:dsmr, "~> 0.3.0"}
-  ]
-end
-```
 
 ## Usage
 
@@ -67,7 +57,21 @@ DSMR.parse(telegram)
 #=> {:ok, %DSMR.Telegram{checksum: "6796", data: [{[1, 3, 0, 2 , 8], "42"}, ...]}
 ```
 
+<!-- MDOC !-->
+
 See the [online documentation](https://hexdocs.pm/dsmr) for more information.
+
+## Installation
+
+Add `dsmr` to your list of dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:dsmr, "~> 0.3.0"}
+  ]
+end
+```
 
 ## Changelog
 

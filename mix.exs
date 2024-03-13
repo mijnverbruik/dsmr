@@ -8,13 +8,17 @@ defmodule DSMR.MixProject do
     [
       app: :dsmr,
       version: @version,
-      elixir: "~> 1.11",
-      name: "DSMR",
-      description: "A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data",
+      elixir: "~> 1.12",
       compilers: compilers(),
       deps: deps(),
-      docs: docs(),
-      package: package()
+
+      # Hex
+      package: package(),
+      description: "A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data",
+
+      # Docs
+      name: "DSMR",
+      docs: docs()
     ]
   end
 
@@ -27,6 +31,7 @@ defmodule DSMR.MixProject do
       {:benchee, "~> 1.3", only: :dev},
       {:decimal, "~> 2.0", optional: true},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.30", only: :dev, runtime: false},
       {:nimble_parsec, "~> 1.4"}
     ]
   end

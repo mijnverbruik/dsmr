@@ -1,14 +1,40 @@
 defmodule DSMR do
-  @moduledoc """
-  A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
-  """
+  @moduledoc "README.md"
+             |> File.read!()
+             |> String.split("<!-- MDOC !-->")
+             |> Enum.fetch!(1)
 
-  alias DSMR.{ChecksumError, ParseError, Telegram}
+  defmodule ChecksumError do
+    @type t :: %__MODULE__{checksum: binary()}
+
+    defexception [:checksum]
+
+    @impl true
+    def message(_exception), do: "checksum mismatch"
+  end
+
+  defmodule ParseError do
+    @type t :: %__MODULE__{message: binary()}
+
+    defexception [:message]
+  end
+
+  alias DSMR.Telegram
 
   @doc """
-  Parses telegram data from a string and returns a struct.
+  Parses telegram data from a string and returns a `DSMR.Telegram` struct.
+
+  ## Options
+
+    * `:checksum` - when true, the checksum will be validated, defaults to `true`.
+
+    * `:floats` - controls how floats are parsed. Possible values are:
+
+      * `:native` (default) - Native conversion from binary to float using `:erlang.binary_to_float/1`,
+      * `:decimals` - uses `Decimal.new/1` to parse the binary into a Decimal struct with arbitrary precision.
   """
-  @spec parse(binary(), keyword()) :: {:ok, Telegram.t()} | {:error, any()}
+  @spec parse(binary(), keyword()) ::
+          {:ok, Telegram.t()} | {:error, ParseError.t() | ChecksumError.t()}
   def parse(string, options \\ []) when is_binary(string) and is_list(options) do
     validate_checksum = Keyword.get(options, :checksum, true)
 

@@ -1,4 +1,6 @@
 defmodule DSMR.Lexer do
+  @moduledoc false
+
   import NimbleParsec
 
   eol = ascii_char([?\r]) |> ascii_char([?\n])
