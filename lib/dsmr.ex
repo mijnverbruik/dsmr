@@ -21,7 +21,7 @@ defmodule DSMR do
     defexception [:message]
   end
 
-  alias DSMR.Telegram
+  alias DSMR.{Parser, Telegram}
 
   @doc """
   Parses telegram data from a string and returns a `DSMR.Telegram` struct.
@@ -62,12 +62,12 @@ defmodule DSMR do
 
   defp do_parse(string, options) do
     try do
-      case DSMR.Lexer.tokenize(string, options) do
+      case Parser.parse(string, options) do
         {:ok, header, data, checksum} ->
           {:ok, %Telegram{header: header, data: data, checksum: checksum}}
 
         {:error, reason, rest} ->
-          {:error, format_parse_error({:lexer, reason, rest})}
+          {:error, format_parse_error({:parser, reason, rest})}
       end
     rescue
       error ->
@@ -75,7 +75,7 @@ defmodule DSMR do
     end
   end
 
-  defp format_parse_error({:lexer, _reason, rest}) do
+  defp format_parse_error({:parser, _reason, rest}) do
     sample_slice = String.slice(rest, 0, 10)
     sample = if String.valid?(sample_slice), do: sample_slice, else: inspect(sample_slice)
 

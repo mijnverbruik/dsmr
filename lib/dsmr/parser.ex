@@ -1,4 +1,4 @@
-defmodule DSMR.Lexer do
+defmodule DSMR.Parser do
   @moduledoc false
 
   import NimbleParsec
@@ -99,13 +99,13 @@ defmodule DSMR.Lexer do
     |> concat(footer_value)
     |> ignore(eol)
 
-  @spec tokenize(binary(), keyword()) ::
+  @spec parse(binary(), keyword()) ::
           {:ok, binary(), [any()], binary()}
           | {:error, binary(), {integer(), non_neg_integer()}}
-  def tokenize(input, options \\ []) do
+  def parse(input, options \\ []) do
     tokenize_opts = [context: %{floats: Keyword.get(options, :floats, :native)}]
 
-    case do_tokenize(input, tokenize_opts) do
+    case do_parse(input, tokenize_opts) do
       {:ok, tokens, "", _, _, _} ->
         [{:header, header}, {:objects, data}, {:footer, checksum}] = tokens
         {:ok, header, data, checksum}
@@ -115,7 +115,7 @@ defmodule DSMR.Lexer do
     end
   end
 
-  defparsecp(:do_tokenize, telegram, inline: true)
+  defparsecp(:do_parse, telegram, inline: true)
 
   defp object_token(rest, [value, {:obis, obis}], context, _line, _offset) do
     value =
