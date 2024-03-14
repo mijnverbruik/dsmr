@@ -11,13 +11,8 @@ defmodule DSMR.Lexer do
 
   alnum = ascii_string([?a..?z, ?A..?Z, ?0..?9], min: 1)
 
-  lparen_token =
-    ascii_char([?(])
-    |> post_traverse({:atom_token, []})
-
-  rparen_token =
-    ascii_char([?)])
-    |> post_traverse({:atom_token, []})
+  lparen_token = ascii_char([?(])
+  rparen_token = ascii_char([?)])
 
   string_value =
     alnum
@@ -27,7 +22,8 @@ defmodule DSMR.Lexer do
     digit
     |> ascii_char([?.])
     |> concat(digit)
-    |> post_traverse({:float_value_token, []})
+    |> reduce({List, :to_string, []})
+    |> unwrap_and_tag(:float)
 
   int_value =
     integer(min: 1)
@@ -40,6 +36,7 @@ defmodule DSMR.Lexer do
 
   measurement_value =
     choice([float_value, int_value])
+    |> post_traverse({:value_token, []})
     |> ignore(ascii_char([?*]))
     |> concat(alnum)
     |> tag(:measurement)
@@ -58,21 +55,26 @@ defmodule DSMR.Lexer do
 
   object_value =
     obis_value
-    |> repeat_while(
-      lparen_token
-      |> optional(
-        choice([
-          timestamp_value,
-          obis_value,
-          measurement_value,
-          float_value,
-          string_value
-        ])
+    |> concat(
+      repeat_while(
+        ignore(lparen_token)
+        |> optional(
+          choice([
+            timestamp_value,
+            obis_value,
+            measurement_value,
+            float_value,
+            string_value
+          ])
+          |> post_traverse({:value_token, []})
+        )
+        |> ignore(rparen_token)
+        |> optional(ignore(eol)),
+        {:not_end_of_line, []}
       )
-      |> concat(rparen_token)
-      |> optional(ignore(eol)),
-      {:not_end_of_line, []}
+      |> tag(:value)
     )
+    |> post_traverse({:object_token, []})
 
   header_value =
     ignore(ascii_char([?/]))
@@ -90,19 +92,23 @@ defmodule DSMR.Lexer do
     header_value
     |> ignore(eol)
     |> ignore(eol)
-    |> repeat(object_value)
+    |> concat(
+      repeat(object_value)
+      |> tag(:objects)
+    )
     |> concat(footer_value)
     |> ignore(eol)
 
   @spec tokenize(binary(), keyword()) ::
-          {:ok, [any()]}
+          {:ok, binary(), [any()], binary()}
           | {:error, binary(), {integer(), non_neg_integer()}}
   def tokenize(input, options \\ []) do
     tokenize_opts = [context: %{floats: Keyword.get(options, :floats, :native)}]
 
     case do_tokenize(input, tokenize_opts) do
       {:ok, tokens, "", _, _, _} ->
-        {:ok, tokens}
+        [{:header, header}, {:objects, data}, {:footer, checksum}] = tokens
+        {:ok, header, data, checksum}
 
       {:error, reason, rest, _, _, _} ->
         {:error, reason, rest}
@@ -111,28 +117,48 @@ defmodule DSMR.Lexer do
 
   defparsecp(:do_tokenize, telegram, inline: true)
 
-  defp atom_token(rest, chars, context, _line, _offset) do
-    value = chars |> Enum.reverse()
-    token_atom = value |> List.to_atom()
+  defp object_token(rest, [value, {:obis, obis}], context, _line, _offset) do
+    value =
+      case value do
+        {:value, [value]} -> value
+        {:value, []} -> nil
+        {:value, values} -> values
+      end
 
-    {rest, [{token_atom}], context}
+    {rest, [{obis, value}], context}
   end
 
-  defp float_value_token(rest, chars, %{floats: :native} = context, _line, _offset) do
-    string = chars |> Enum.reverse() |> List.to_string()
-    {rest, [{:float, :erlang.binary_to_float(string)}], context}
+  defp value_token(rest, [{:float, value}], %{floats: :native} = context, _line, _offset) do
+    {rest, [:erlang.binary_to_float(value)], context}
   end
 
-  defp float_value_token(rest, chars, %{floats: :decimals} = context, _line, _offset) do
-    string = chars |> Enum.reverse() |> List.to_string()
+  defp value_token(rest, [{:float, value}], %{floats: :decimals} = context, _line, _offset) do
     # silence xref warning
     decimal = Decimal
 
     try do
-      {rest, [{:float, decimal.new(string)}], context}
+      {rest, [decimal.new(value)], context}
     rescue
       Decimal.Error -> {:error, "invalid float"}
     end
+  end
+
+  defp value_token(rest, [{:measurement, value}], context, _line, _offset) do
+    [value, unit] = value
+    {rest, [%{value: value, unit: unit}], context}
+  end
+
+  defp value_token(rest, [{:timestamp, value}], context, _line, _offset) do
+    [year, month, day, hour, minute, second, dst] = value
+
+    # As the year is abbreviated, we need to normalize it as well.
+    timestamp = NaiveDateTime.new!(2000 + year, month, day, hour, minute, second)
+
+    {rest, [{timestamp, dst}], context}
+  end
+
+  defp value_token(rest, [{_token, value}], context, _line, _offset) do
+    {rest, [value], context}
   end
 
   defp not_end_of_line(<<?\r, ?\n, _::binary>>, context, _, _), do: {:halt, context}

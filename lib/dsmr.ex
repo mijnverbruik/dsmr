@@ -63,14 +63,8 @@ defmodule DSMR do
   defp do_parse(string, options) do
     try do
       case DSMR.Lexer.tokenize(string, options) do
-        {:ok, tokens} ->
-          case :dsmr_parser.parse(tokens) do
-            {:ok, telegram} ->
-              {:ok, telegram}
-
-            {:error, raw_error} ->
-              {:error, format_parse_error(raw_error)}
-          end
+        {:ok, header, data, checksum} ->
+          {:ok, %Telegram{header: header, data: data, checksum: checksum}}
 
         {:error, reason, rest} ->
           {:error, format_parse_error({:lexer, reason, rest})}
@@ -79,11 +73,6 @@ defmodule DSMR do
       error ->
         {:error, format_parse_error(error)}
     end
-  end
-
-  defp format_parse_error({_token, :dsmr_parser, msgs}) do
-    message = msgs |> Enum.map(&to_string/1) |> Enum.join("")
-    %ParseError{message: message}
   end
 
   defp format_parse_error({:lexer, _reason, rest}) do

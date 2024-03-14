@@ -9,7 +9,6 @@ defmodule DSMR.MixProject do
       app: :dsmr,
       version: @version,
       elixir: "~> 1.12",
-      compilers: compilers(),
       deps: deps(),
 
       # Hex
@@ -20,10 +19,6 @@ defmodule DSMR.MixProject do
       name: "DSMR",
       docs: docs()
     ]
-  end
-
-  defp compilers do
-    [:yecc] ++ Mix.compilers()
   end
 
   defp deps do
@@ -46,15 +41,6 @@ defmodule DSMR.MixProject do
 
   defp package() do
     [
-      files: [
-        "lib",
-        "src/dsmr_parser.yrl",
-        "mix.exs",
-        "README.md",
-        "LICENSE",
-        "CHANGELOG.md",
-        ".formatter.exs"
-      ],
       licenses: ["Apache-2.0"],
       maintainers: ["Robin van der Vleuten"],
       links: %{"GitHub" => @source_url}
