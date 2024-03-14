@@ -3,6 +3,8 @@ defmodule DSMR.Parser do
 
   import NimbleParsec
 
+  alias DSMR.{Measurement, Timestamp}
+
   eol = ascii_char([?\r]) |> ascii_char([?\n])
 
   any_char = ascii_char([])
@@ -145,7 +147,7 @@ defmodule DSMR.Parser do
 
   defp value_token(rest, [{:measurement, value}], context, _line, _offset) do
     [value, unit] = value
-    {rest, [%{value: value, unit: unit}], context}
+    {rest, [%Measurement{value: value, unit: unit}], context}
   end
 
   defp value_token(rest, [{:timestamp, value}], context, _line, _offset) do
@@ -154,7 +156,7 @@ defmodule DSMR.Parser do
     # As the year is abbreviated, we need to normalize it as well.
     timestamp = NaiveDateTime.new!(2000 + year, month, day, hour, minute, second)
 
-    {rest, [{timestamp, dst}], context}
+    {rest, [%Timestamp{value: timestamp, dst: dst}], context}
   end
 
   defp value_token(rest, [{_token, value}], context, _line, _offset) do

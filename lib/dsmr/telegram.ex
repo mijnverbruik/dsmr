@@ -6,10 +6,10 @@ defmodule DSMR.Telegram do
            non_neg_integer()}
 
   @type value_t() ::
-          binary()
+          String.t()
           | obis_t()
-          | {:timestamp, NaiveDateTime.t(), binary()}
-          | {:measurement, float() | Decimal.t(), binary()}
+          | DSMR.Timestamp.t()
+          | DSMR.Measurement.t()
 
   @type obj_t() :: {obis_t(), value_t() | [value_t()]}
 
