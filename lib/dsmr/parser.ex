@@ -3,7 +3,7 @@ defmodule DSMR.Parser do
 
   import NimbleParsec
 
-  alias DSMR.{Measurement, Timestamp}
+  alias DSMR.{Measurement, Telegram, Timestamp}
 
   eol = ascii_char([?\r]) |> ascii_char([?\n])
 
@@ -102,21 +102,24 @@ defmodule DSMR.Parser do
     |> ignore(eol)
 
   @spec parse(binary(), keyword()) ::
-          {:ok, binary(), [any()], binary()}
-          | {:error, binary(), {integer(), non_neg_integer()}}
-  def parse(input, options \\ []) do
+          {:ok, Telegram.t()} | {:error, binary(), binary()}
+  def parse(input, options) do
     tokenize_opts = [context: %{floats: Keyword.get(options, :floats, :native)}]
 
     case do_parse(input, tokenize_opts) do
       {:ok, tokens, "", _, _, _} ->
         [{:header, header}, {:objects, data}, {:footer, checksum}] = tokens
-        {:ok, header, data, checksum}
+        {:ok, %Telegram{header: header, data: data, checksum: checksum}}
 
       {:error, reason, rest, _, _, _} ->
         {:error, reason, rest}
     end
   end
 
+  @spec do_parse(binary()) ::
+          {:ok, [any()], binary(), map(), {pos_integer(), pos_integer()}, pos_integer()}
+          | {:error, String.t(), String.t(), map(), {non_neg_integer(), non_neg_integer()},
+             non_neg_integer()}
   defparsecp(:do_parse, telegram, inline: true)
 
   defp object_token(rest, [value, {:obis, obis}], context, _line, _offset) do

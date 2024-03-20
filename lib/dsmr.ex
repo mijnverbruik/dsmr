@@ -63,8 +63,8 @@ defmodule DSMR do
   defp do_parse(string, options) do
     try do
       case Parser.parse(string, options) do
-        {:ok, header, data, checksum} ->
-          {:ok, %Telegram{header: header, data: data, checksum: checksum}}
+        {:ok, _telegram} = result ->
+          result
 
         {:error, reason, rest} ->
           {:error, format_parse_error({:parser, reason, rest})}
