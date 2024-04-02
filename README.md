@@ -54,7 +54,7 @@ telegram =
   ])
 
 DSMR.parse(telegram)
-#=> {:ok, %DSMR.Telegram{checksum: "6796", data: [{[1, 3, 0, 2 , 8], "42"}, ...]}
+#=> {:ok, %DSMR.Telegram{header: "KFM5KAIFA-METER", version: "42", electricity_delivered_1: %Measurement{unit: "kWh",value: Decimal.new("1581.123")}, ...]}
 ```
 
 <!-- MDOC !-->

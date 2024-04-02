@@ -100,7 +100,6 @@ defmodule DSMR do
   end
 
   defp valid_checksum?(_telegram, _string, false), do: :ok
-  # @TODO Only skip empty checksums when telegram version does not require it.
   defp valid_checksum?(%DSMR.Telegram{checksum: ""}, _string, _), do: :ok
 
   defp valid_checksum?(%DSMR.Telegram{} = telegram, string, _) do
