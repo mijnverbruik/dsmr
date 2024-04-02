@@ -1,5 +1,6 @@
 defmodule DSMR.Timestamp do
-  defstruct value: nil, dst: ""
+  @enforce_keys [:value, :dst]
+  defstruct [:value, :dst]
 
   @type t() :: %__MODULE__{
           value: NaiveDateTime.t(),
