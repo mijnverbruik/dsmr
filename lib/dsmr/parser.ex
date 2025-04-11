@@ -2,6 +2,7 @@ defmodule DSMR.Parser do
   @moduledoc false
 
   import NimbleParsec
+  import DSMR.Combinators
 
   alias DSMR.{Measurement, Telegram, Timestamp}
 
@@ -13,35 +14,44 @@ defmodule DSMR.Parser do
 
   alnum = ascii_string([?a..?z, ?A..?Z, ?0..?9], min: 1)
 
-  lparen_token = ascii_char([?(])
-  rparen_token = ascii_char([?)])
-
-  string_value =
-    alnum
-    |> unwrap_and_tag(:string)
-
   float_value =
     digit
     |> ascii_char([?.])
     |> concat(digit)
     |> reduce({List, :to_string, []})
     |> unwrap_and_tag(:float)
+    |> value()
 
   int_value =
     integer(min: 1)
     |> unwrap_and_tag(:int)
+    |> value()
+
+  string_value =
+    alnum
+    |> unwrap_and_tag(:string)
+    |> value()
 
   timestamp_value =
     times(integer(2), 6)
     |> reduce(ascii_char([?S, ?W]), {List, :to_string, []})
     |> tag(:timestamp)
+    |> value()
 
   measurement_value =
     choice([float_value, int_value])
-    |> post_traverse({:value_token, []})
     |> ignore(ascii_char([?*]))
     |> concat(alnum)
     |> tag(:measurement)
+    |> value()
+
+  legacy_measurement_value =
+    string_value
+    |> wrap_with_parens()
+    |> ignore(eol)
+    |> concat(choice([float_value, int_value]) |> wrap_with_parens())
+    |> tag(:legacy_measurement)
+    |> value()
 
   obis_value =
     integer(min: 1)
@@ -54,51 +64,116 @@ defmodule DSMR.Parser do
     |> ignore(ascii_char([?.]))
     |> integer(min: 1)
     |> tag(:obis)
+    |> value()
 
-  object_value =
-    obis_value
+  event_log_attribute =
+    attribute(int_value)
+    |> concat(attribute(obis_value))
     |> concat(
-      repeat_while(
-        ignore(lparen_token)
-        |> optional(
-          choice([
-            timestamp_value,
-            obis_value,
-            measurement_value,
-            float_value,
-            string_value
-          ])
-          |> post_traverse({:value_token, []})
+      repeat(
+        concat(
+          attribute(timestamp_value),
+          attribute(measurement_value)
         )
-        |> ignore(rparen_token)
-        |> optional(ignore(eol)),
-        {:not_end_of_line, []}
       )
-      |> tag(:value)
     )
-    |> post_traverse({:object_token, []})
+    |> post_traverse({:attribute_token, []})
 
-  header_value =
+  mbus_reading_attribute =
+    repeat(
+      concat(
+        attribute(timestamp_value),
+        attribute(measurement_value)
+      )
+    )
+    |> post_traverse({:attribute_token, []})
+
+  legacy_gas_reading_attribute =
+    attribute(string_value)
+    |> concat(attribute(string_value))
+    |> concat(attribute(string_value))
+    |> concat(attribute(string_value))
+    |> concat(attribute(obis_value))
+    |> concat(legacy_measurement_value)
+    |> post_traverse({:attribute_token, []})
+
+  data =
+    choice(
+      [
+        object("1-3:0.2.8", attribute(string_value)),
+        object("0-0:1.0.0", attribute(timestamp_value)),
+        object("0-0:96.1.1", attribute(string_value)),
+        object("1-0:1.8.1", attribute(measurement_value)),
+        object("1-0:1.8.2", attribute(measurement_value)),
+        object("1-0:2.8.1", attribute(measurement_value)),
+        object("1-0:2.8.2", attribute(measurement_value)),
+        object("0-0:96.14.0", attribute(string_value)),
+        object("1-0:1.7.0", attribute(measurement_value)),
+        object("1-0:2.7.0", attribute(measurement_value)),
+        object("0-0:96.7.21", attribute(string_value)),
+        object("0-0:96.7.9", attribute(string_value)),
+        object("1-0:99.97.0", event_log_attribute),
+        object("1-0:32.32.0", attribute(string_value)),
+        object("1-0:52.32.0", attribute(string_value)),
+        object("1-0:72.32.0", attribute(string_value)),
+        object("1-0:32.36.0", attribute(string_value)),
+        object("1-0:52.36.0", attribute(string_value)),
+        object("1-0:72.36.0", attribute(string_value)),
+        object("1-0:32.7.0", attribute(measurement_value)),
+        object("1-0:52.7.0", attribute(measurement_value)),
+        object("1-0:72.7.0", attribute(measurement_value)),
+        object("0-0:96.13.1", optional_attribute(string_value)),
+        object("0-0:96.13.0", optional_attribute(string_value)),
+        object("1-0:31.7.0", attribute(measurement_value)),
+        object("1-0:51.7.0", attribute(measurement_value)),
+        object("1-0:71.7.0", attribute(measurement_value)),
+        object("1-0:21.7.0", attribute(measurement_value)),
+        object("1-0:22.7.0", attribute(measurement_value)),
+        object("1-0:41.7.0", attribute(measurement_value)),
+        object("1-0:42.7.0", attribute(measurement_value)),
+        object("1-0:61.7.0", attribute(measurement_value)),
+        object("1-0:62.7.0", attribute(measurement_value)),
+
+        # actual threshold electricity (removed in v4.2.2)
+        object("0-0:17.0.0", attribute(measurement_value)),
+        # actual switch position (removed in v4.2.2)
+        object("0-0:96.3.10", attribute(string_value)),
+        # gas meter reading (removed in v4.2.2)
+        object("0-1:24.3.0", legacy_gas_reading_attribute),
+        # mbus valve position (removed in v4.2.2)
+        object("0-1:24.4.0", attribute(string_value))
+      ] ++
+        Enum.flat_map(1..4, fn i ->
+          [
+            object("0-#{i}:24.1.0", attribute(string_value)),
+            object("0-#{i}:96.1.0", optional_attribute(string_value)),
+            object("0-#{i}:24.2.1", mbus_reading_attribute)
+          ]
+        end)
+    )
+    |> ignore(eol)
+
+  header =
     ignore(ascii_char([?/]))
     |> repeat_while(any_char, {:not_end_of_line, []})
     |> reduce({List, :to_string, []})
     |> unwrap_and_tag(:header)
 
-  footer_value =
+  footer =
     ignore(ascii_char([?!]))
     |> repeat_while(any_char, {:not_end_of_line, []})
     |> reduce({List, :to_string, []})
     |> unwrap_and_tag(:footer)
 
   telegram =
-    header_value
+    header
     |> ignore(eol)
     |> ignore(eol)
     |> concat(
-      repeat(object_value)
-      |> tag(:objects)
+      repeat(data)
+      |> tag(:data)
     )
-    |> concat(footer_value)
+    |> concat(footer)
     |> ignore(eol)
 
   @spec parse(binary(), keyword()) ::
@@ -108,7 +183,7 @@ defmodule DSMR.Parser do
 
     case do_parse(input, tokenize_opts) do
       {:ok, tokens, "", _, _, _} ->
-        [{:header, header}, {:objects, data}, {:footer, checksum}] = tokens
+        [{:header, header}, {:data, data}, {:footer, checksum}] = tokens
         {:ok, %Telegram{header: header, data: data, checksum: checksum}}
 
       {:error, reason, rest, _, _, _} ->
@@ -122,15 +197,20 @@ defmodule DSMR.Parser do
              non_neg_integer()}
   defparsecp(:do_parse, telegram, inline: true)
 
-  defp object_token(rest, [value, {:obis, obis}], context, _line, _offset) do
-    value =
-      case value do
-        {:value, [value]} -> value
-        {:value, []} -> nil
-        {:value, values} -> values
-      end
+  defp object_token(rest, [attribute, {:obis, obis}], context, _line, _offset) do
+    {rest, [{obis, attribute}], context}
+  end
 
-    {rest, [{obis, value}], context}
+  defp attribute_token(rest, [attribute], context, _line, _offset) do
+    {rest, [attribute], context}
+  end
+
+  defp attribute_token(rest, [], context, _line, _offset) do
+    {rest, [nil], context}
+  end
+
+  defp attribute_token(rest, attributes, context, _line, _offset) do
+    {rest, [Enum.reverse(attributes)], context}
   end
 
   defp value_token(rest, [{:float, value}], %{floats: :native} = context, _line, _offset) do
@@ -150,6 +230,11 @@ defmodule DSMR.Parser do
 
   defp value_token(rest, [{:measurement, value}], context, _line, _offset) do
     [value, unit] = value
+    {rest, [%Measurement{value: value, unit: unit}], context}
+  end
+
+  defp value_token(rest, [{:legacy_measurement, value}], context, _line, _offset) do
+    [unit, value] = value
     {rest, [%Measurement{value: value, unit: unit}], context}
   end
 
