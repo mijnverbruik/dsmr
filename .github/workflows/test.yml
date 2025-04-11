@@ -18,8 +18,8 @@ jobs:
         include:
           - elixir: 1.12.x
             otp: 22.3.x
-          - elixir: 1.16.x
-            otp: 26.2.x
+          - elixir: 1.18.x
+            otp: 27.3.x
             lint: lint
 
     steps:
@@ -39,15 +39,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-
 
-      - run: mix deps.get --check-locked
+      - run: mix do deps.get --check-locked, deps.compile
+        if: steps.cache-deps.outputs.cache-hit != 'true'
 
       - run: mix format --check-formatted
         if: ${{ matrix.lint }}
 
       - run: mix deps.unlock --check-unused
         if: ${{ matrix.lint }}
-
-      - run: mix deps.compile
 
       - run: mix compile --warnings-as-errors
         if: ${{ matrix.lint }}
