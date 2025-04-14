@@ -61,26 +61,30 @@ defmodule DSMR do
   end
 
   defp do_parse(string, options) do
-    try do
-      case Parser.parse(string, options) do
-        {:ok, _telegram} = result ->
-          result
+    case Parser.parse(string, options) do
+      {:ok, _telegram} = result ->
+        result
 
-        {:error, reason, rest} ->
-          {:error, format_parse_error({:parser, reason, rest})}
-      end
-    rescue
-      error ->
+      # handle leex errors: {:error, {Line, Module, Reason}, Tokens}
+      {:error, error, _} ->
+        {:error, format_parse_error(error)}
+
+      # handle yecc errors: {:error, {Line, Module, Message}}
+      {:error, error} ->
         {:error, format_parse_error(error)}
     end
+  rescue
+    # Catch any unexpected exceptions during parsing
+    error ->
+      {:error, format_parse_error(error)}
   end
 
-  defp format_parse_error({:parser, _reason, rest}) do
-    sample_slice = String.slice(rest, 0, 10)
-    sample = if String.valid?(sample_slice), do: sample_slice, else: inspect(sample_slice)
+  defp format_parse_error({_, :dsmr_lexer, _}) do
+    %DSMR.ParseError{message: "unexpected character while parsing"}
+  end
 
-    message = "Parsing failed at `#{sample}`"
-    %ParseError{message: message}
+  defp format_parse_error({_, :dsmr_parser, _}) do
+    %DSMR.ParseError{message: "unexpected token while parsing"}
   end
 
   defp format_parse_error(%{} = error) do
@@ -91,7 +95,7 @@ defmodule DSMR do
         ""
       end
 
-    message = "An unknown error occurred while parsing" <> detail
+    message = "An unexpected error occurred while parsing" <> detail
     %ParseError{message: message}
   end
 

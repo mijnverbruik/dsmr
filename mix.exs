@@ -10,6 +10,7 @@ defmodule DSMR.MixProject do
       version: @version,
       elixir: "~> 1.12",
       deps: deps(),
+      compilers: [:leex, :yecc] ++ Mix.compilers(),
 
       # Hex
       package: package(),
@@ -26,8 +27,7 @@ defmodule DSMR.MixProject do
       {:benchee, "~> 1.3", only: :dev},
       {:decimal, "~> 2.0", optional: true},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.30", only: :dev, runtime: false},
-      {:nimble_parsec, "~> 1.4"}
+      {:ex_doc, "~> 0.30", only: :dev, runtime: false}
     ]
   end
 

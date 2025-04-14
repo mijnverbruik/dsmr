@@ -49,15 +49,8 @@ defmodule DSMRTest do
                     {[0, 0, 96, 13, 0], nil},
                     {[0, 1, 24, 1, 0], "3"},
                     {[0, 1, 96, 1, 0], "000000000000"},
-                    {[0, 1, 24, 3, 0],
-                     [
-                       "161107190000",
-                       "00",
-                       "60",
-                       "1",
-                       [0, 1, 24, 2, 1],
-                       %Measurement{unit: "m3", value: 1.001}
-                     ]},
+                    {[0, 1, 24, 3, 0], "161107190000", "00", "60", "1", [0, 1, 24, 2, 1], "m3",
+                     "00001.001"},
                     {[0, 1, 24, 4, 0], "1"}
                   ]
                 }}
@@ -113,15 +106,8 @@ defmodule DSMRTest do
                     },
                     {[0, 1, 96, 1, 0], "3232323241424344313233343536373839"},
                     {[0, 1, 24, 1, 0], "03"},
-                    {[0, 1, 24, 3, 0],
-                     [
-                       "090212160000",
-                       "00",
-                       "60",
-                       "1",
-                       [0, 1, 24, 2, 1],
-                       %Measurement{unit: "m3", value: 1.001}
-                     ]},
+                    {[0, 1, 24, 3, 0], "090212160000", "00", "60", "1", [0, 1, 24, 2, 1], "m3",
+                     "00001.001"},
                     {[0, 1, 24, 4, 0], "1"}
                   ]
                 }}
@@ -188,16 +174,14 @@ defmodule DSMRTest do
                     {[0, 0, 96, 7, 9], "00007"},
                     {
                       [1, 0, 99, 97, 0],
-                      [
-                        3,
-                        [0, 0, 96, 7, 19],
-                        %Timestamp{value: ~N[2000-01-04 18:03:20], dst: "W"},
-                        %Measurement{unit: "s", value: 237_126},
-                        %Timestamp{value: ~N[2000-01-01 00:00:01], dst: "W"},
-                        %Measurement{unit: "s", value: 2_147_583_646},
-                        %Timestamp{value: ~N[2000-01-02 00:00:03], dst: "W"},
-                        %Measurement{unit: "s", value: 2_317_482_647}
-                      ]
+                      "3",
+                      [0, 0, 96, 7, 19],
+                      %Timestamp{value: ~N[2000-01-04 18:03:20], dst: "W"},
+                      %Measurement{unit: "s", value: 237_126},
+                      %Timestamp{value: ~N[2000-01-01 00:00:01], dst: "W"},
+                      %Measurement{unit: "s", value: 2_147_583_646},
+                      %Timestamp{value: ~N[2000-01-02 00:00:03], dst: "W"},
+                      %Measurement{unit: "s", value: 2_317_482_647}
                     },
                     {[1, 0, 32, 32, 0], "00000"},
                     {[1, 0, 52, 32, 0], "00000"},
@@ -218,11 +202,8 @@ defmodule DSMRTest do
                     {[1, 0, 62, 7, 0], %Measurement{unit: "kW", value: 0.0}},
                     {[0, 1, 24, 1, 0], "003"},
                     {[0, 1, 96, 1, 0], "4819243993373755377509728609491464"},
-                    {[0, 1, 24, 2, 1],
-                     [
-                       %Timestamp{value: ~N[2016-11-29 20:00:00], dst: "W"},
-                       %Measurement{unit: "m3", value: 981.443}
-                     ]}
+                    {[0, 1, 24, 2, 1], %Timestamp{value: ~N[2016-11-29 20:00:00], dst: "W"},
+                     %Measurement{unit: "m3", value: 981.443}}
                   ],
                   checksum: "6796"
                 }}
@@ -291,7 +272,7 @@ defmodule DSMRTest do
                     {[1, 0, 2, 7, 0], %Measurement{unit: "kW", value: 0.0}},
                     {[0, 0, 96, 7, 21], "00013"},
                     {[0, 0, 96, 7, 9], "00000"},
-                    {[1, 0, 99, 97, 0], [0, [0, 0, 96, 7, 19]]},
+                    {[1, 0, 99, 97, 0], "0", [0, 0, 96, 7, 19]},
                     {[1, 0, 32, 32, 0], "00000"},
                     {[1, 0, 52, 32, 0], "00000"},
                     {[1, 0, 72, 32, 0], "00000"},
@@ -313,11 +294,8 @@ defmodule DSMRTest do
                     {[1, 0, 62, 7, 0], %Measurement{unit: "kW", value: 0.0}},
                     {[0, 1, 24, 1, 0], "003"},
                     {[0, 1, 96, 1, 0], "3232323241424344313233343536373839"},
-                    {[0, 1, 24, 2, 1],
-                     [
-                       %Timestamp{value: ~N[2017-01-02 16:10:05], dst: "W"},
-                       %Measurement{unit: "m3", value: 0.107}
-                     ]},
+                    {[0, 1, 24, 2, 1], %Timestamp{value: ~N[2017-01-02 16:10:05], dst: "W"},
+                     %Measurement{unit: "m3", value: 0.107}},
                     {[0, 2, 24, 1, 0], "003"},
                     {[0, 2, 96, 1, 0], nil}
                   ]
@@ -329,9 +307,14 @@ defmodule DSMRTest do
                {:ok, %Telegram{header: "empty", checksum: "0039", data: []}}
     end
 
-    test "with invalid telegram" do
-      assert DSMR.parse("invalid") ==
-               {:error, %DSMR.ParseError{message: "Parsing failed at `invalid`"}}
+    test "with invalid telegram while lexing" do
+      assert DSMR.parse("invalid$foo") ==
+               {:error, %DSMR.ParseError{message: "unexpected character while parsing"}}
+    end
+
+    test "with invalid telegram while parsing" do
+      assert DSMR.parse("invalid!foo") ==
+               {:error, %DSMR.ParseError{message: "unexpected token while parsing"}}
     end
 
     test "with invalid checksum" do
@@ -375,24 +358,20 @@ defmodule DSMRTest do
                     {[0, 0, 96, 7, 21], "00015"},
                     {
                       [1, 0, 99, 97, 0],
-                      [
-                        3,
-                        [0, 0, 96, 7, 19],
-                        %Timestamp{value: ~N[2000-01-04 18:03:20], dst: "W"},
-                        %Measurement{unit: "s", value: 237_126},
-                        %Timestamp{value: ~N[2000-01-01 00:00:01], dst: "W"},
-                        %Measurement{unit: "s", value: 2_147_583_646},
-                        %Timestamp{value: ~N[2000-01-02 00:00:03], dst: "W"},
-                        %Measurement{unit: "s", value: 2_317_482_647}
-                      ]
+                      "3",
+                      [0, 0, 96, 7, 19],
+                      %Timestamp{value: ~N[2000-01-04 18:03:20], dst: "W"},
+                      %Measurement{unit: "s", value: 237_126},
+                      %Timestamp{value: ~N[2000-01-01 00:00:01], dst: "W"},
+                      %Measurement{unit: "s", value: 2_147_583_646},
+                      %Timestamp{value: ~N[2000-01-02 00:00:03], dst: "W"},
+                      %Measurement{unit: "s", value: 2_317_482_647}
                     },
                     {[1, 0, 62, 7, 0], %Measurement{unit: "kW", value: Decimal.new("0.000")}},
                     {
                       [0, 1, 24, 2, 1],
-                      [
-                        %Timestamp{value: ~N[2016-11-29 20:00:00], dst: "W"},
-                        %Measurement{unit: "m3", value: Decimal.new("981.443")}
-                      ]
+                      %Timestamp{value: ~N[2016-11-29 20:00:00], dst: "W"},
+                      %Measurement{unit: "m3", value: Decimal.new("981.443")}
                     }
                   ],
                   checksum: "AA23"
@@ -407,7 +386,7 @@ defmodule DSMRTest do
     end
 
     test "with invalid telegram" do
-      assert_raise DSMR.ParseError, "Parsing failed at `invalid`", fn ->
+      assert_raise DSMR.ParseError, "unexpected token while parsing", fn ->
         DSMR.parse!("invalid")
       end
     end
