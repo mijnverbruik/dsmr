@@ -16,10 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: 1.12.x
-            otp: 22.3.x
+          - elixir: 1.14.x
+            otp: 23.x
           - elixir: 1.18.x
-            otp: 27.3.x
+            otp: 27.x
             lint: lint
 
     steps:
