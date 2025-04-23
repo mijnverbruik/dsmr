@@ -43,6 +43,7 @@ defmodule DSMR.MixProject do
     [
       licenses: ["Apache-2.0"],
       maintainers: ["Robin van der Vleuten"],
+      files: ["lib", "mix.exs", "README*", "CHANGELOG*", "LICENSE", "src"],
       links: %{"GitHub" => @source_url}
     ]
   end

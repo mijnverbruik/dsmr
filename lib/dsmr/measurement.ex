@@ -1,5 +1,6 @@
 defmodule DSMR.Measurement do
-  defstruct value: nil, unit: ""
+  @enforce_keys [:value, :unit]
+  defstruct [:value, :unit]
 
   @type t() :: %__MODULE__{
           value: float() | Decimal.t(),
