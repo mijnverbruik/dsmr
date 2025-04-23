@@ -68,7 +68,7 @@ Add `dsmr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:dsmr, "~> 0.5"}
+    {:dsmr, "~> 0.6"}
   ]
 end
 ```
