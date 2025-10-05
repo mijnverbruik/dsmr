@@ -8,6 +8,40 @@
 
 A library for parsing Dutch Smart Meter Requirements (DSMR) telegram data.
 
+DSMR is the standardized protocol used by smart energy meters in the Netherlands, Belgium, and Luxembourg. These smart meters are installed in homes and businesses to measure electricity and gas consumption in real-time.
+
+Smart meters continuously broadcast "telegrams" - structured data packets containing:
+- Current and cumulative electricity usage (delivered and returned to grid)
+- Gas consumption readings
+- Voltage and current measurements per phase
+- Power failure logs and quality statistics
+- Additional M-Bus connected devices (water, thermal, etc.)
+
+This library parses these telegrams into Elixir structs, making it easy to build energy monitoring applications, home automation systems, or analytics dashboards.
+
+## Installation
+
+Add `dsmr` to your list of dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:dsmr, "~> 0.6"}
+    {:decimal, "~> 2.0"} # Optional: For high-precision decimal values instead of floats, add the Decimal library.
+  ]
+end
+```
+
+When [Decimal](https://hex.pm/packages/decimal) is available, measurement values will be returned as `%Decimal{}` structs. Without it, values are returned as floats.
+
+## Supported DSMR Versions
+
+This library supports **DSMR 4.x and 5.x** protocols:
+- **DSMR 4.x** (version "42", "40") - Older Dutch meters
+- **DSMR 5.x** (version "50") - Current standard in Netherlands, Belgium, Luxembourg
+
+The parser automatically handles version differences. The `version` field in the telegram indicates which protocol version the meter uses.
+
 ## Usage
 
 ```elixir
@@ -57,6 +91,39 @@ DSMR.parse(telegram)
 #=> {:ok, %DSMR.Telegram{header: "KFM5KAIFA-METER", version: "42", electricity_delivered_1: %Measurement{unit: "kWh",value: Decimal.new("1581.123")}, ...]}
 ```
 
+### Available Telegram Fields
+
+The parsed `%DSMR.Telegram{}` struct contains the following fields:
+
+**Header & Metadata**
+- `header` - Meter manufacturer and model
+- `checksum` - CRC16 checksum
+- `version` - DSMR protocol version ("42", "50", etc.)
+- `measured_at` - Timestamp of measurement
+- `equipment_id` - Unique meter identifier
+
+**Electricity Measurements**
+- `electricity_delivered_1` / `electricity_delivered_2` - Cumulative consumption (tariff 1/2)
+- `electricity_returned_1` / `electricity_returned_2` - Cumulative return to grid (tariff 1/2)
+- `electricity_tariff_indicator` - Current active tariff
+- `electricity_currently_delivered` / `electricity_currently_returned` - Instantaneous power
+
+**Per-Phase Measurements** (3-phase connections)
+- `currently_delivered_l1/l2/l3` - Power delivered per phase
+- `currently_returned_l1/l2/l3` - Power returned per phase
+- `voltage_l1/l2/l3` - Voltage per phase
+- `phase_power_current_l1/l2/l3` - Current per phase
+
+**Power Quality**
+- `power_failures_count` / `power_failures_long_count` - Failure counters
+- `power_failures_log` - Timestamped log of power failures
+- `voltage_sags_l1/l2/l3_count` / `voltage_swells_l1/l2/l3_count` - Quality events
+
+**M-Bus Devices** (gas, water, thermal meters)
+- `mbus_devices` - List of `%DSMR.MBusDevice{}` structs with gas/water/heat readings
+
+See [full documentation](https://hexdocs.pm/dsmr/DSMR.Telegram.html) for detailed field descriptions and types.
+
 ### Serialization
 
 You can convert a `Telegram` struct back to its string representation:
@@ -77,9 +144,47 @@ DSMR.Telegram.to_string(telegram)
 #=> "/KFM5KAIFA-METER\r\n\r\n1-3:0.2.8(42)\r\n0-0:1.0.0(161113205757W)\r\n1-0:1.8.1(001581.123*kWh)\r\n!6796\r\n"
 ```
 
-<!-- MDOC !-->
+### Error Handling
 
-## How it Works
+The parser returns `{:error, reason}` tuples for invalid data:
+
+```elixir
+DSMR.parse("invalid data")
+#=> {:error, {1, :dsmr_parser, ['syntax error before: ', []]}}
+
+DSMR.parse("/HEADER\r\n!FFFF\r\n")  # Bad checksum
+#=> {:error, :invalid_checksum}
+```
+
+**Common errors:**
+- `:invalid_checksum` - CRC16 validation failed
+- `{line, :dsmr_parser, message}` - Syntax error at specific line
+- `{line, :dsmr_lexer, message}` - Tokenization error
+
+**Troubleshooting:**
+- Ensure telegrams are complete (start with `/`, end with `!` + checksum)
+- Check for proper line endings (`\r\n`)
+- Verify the telegram hasn't been corrupted during transmission
+- Some meters send partial telegrams on connection - wait for the next complete one
+
+### Getting Real Telegram Data
+
+Smart meters typically expose data via:
+- **Serial port** (P1 port, usually RJ12 or RJ11 connector, 115200 baud)
+- **Network** (some meters or P1-to-WiFi adapters expose TCP sockets)
+
+This library only handles parsing - you'll need to handle data acquisition separately.
+
+**Example: Reading from a networked meter**
+
+See the included [Livebook example](examples/connect_to_dsmr_meter.livemd) for a complete GenServer implementation that:
+- Connects to a meter via TCP (common with WiFi P1 adapters)
+- Buffers incoming lines and assembles complete telegrams
+- Parses telegrams and visualizes real-time usage
+
+For serial port connections, use libraries like [Circuits.UART](https://hex.pm/packages/circuits_uart).
+
+## Internals
 
 This library uses a two-stage parsing architecture built on Erlang's **leex** (lexical analyzer) and **yecc** (parser generator):
 
@@ -104,7 +209,7 @@ attribute -> '(' value ')' : '$2'.
 value -> float '*' string : extract_measurement('$1', '$3').
 ```
 
-OBIS code mapping is centralized in the `DSMR.OBIS` Elixir module, which serves as the single source of truth for all field mappings. The parser calls this module at runtime to map OBIS codes like `[1,0,1,8,1]` to field names like `:electricity_delivered_1`.
+OBIS code mapping is centralized in the `DSMR.OBIS` Elixir module (`lib/dsmr/obis.ex`), which serves as the single source of truth for all field mappings. The parser calls this module at runtime to map OBIS codes like `[1,0,1,8,1]` to field names like `:electricity_delivered_1`.
 
 Special cases are handled directly in the parser:
 - **MBus devices**: Fields with wildcards (e.g., `0-*:24.1.0`) are grouped by channel
@@ -112,19 +217,7 @@ Special cases are handled directly in the parser:
 
 The final `DSMR.Parser` module coordinates both stages and constructs the final struct with proper type conversions (Decimal, NaiveDateTime, etc.).
 
-See the [online documentation](https://hexdocs.pm/dsmr) for more information.
-
-## Installation
-
-Add `dsmr` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:dsmr, "~> 0.6"}
-  ]
-end
-```
+<!-- MDOC !-->
 
 ## Changelog
 
@@ -138,14 +231,6 @@ Everyone is encouraged to help improve this project. Here are a few ways you can
 - Fix bugs and [submit pull requests](https://github.com/mijnverbruik/dsmr/pulls)
 - Write, clarify, or fix documentation
 - Suggest or add new features
-
-To get started with development:
-
-```
-git clone https://github.com/mijnverbruik/dsmr.git
-cd dsmr
-mix test
-```
 
 ## License
 
