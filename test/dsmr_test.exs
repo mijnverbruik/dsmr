@@ -589,6 +589,49 @@ defmodule DSMRTest do
     end
   end
 
+  describe "unknown OBIS codes" do
+    test "are collected in unknown_fields" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "1-3:0.2.8(50)\r\n",
+          "9-9:99.99.99(12345)\r\n",
+          "8-8:88.88.88(678.90*kWh)\r\n",
+          "!AD02\r\n"
+        ])
+
+      assert DSMR.parse(telegram) ==
+               {:ok,
+                %Telegram{
+                  header: "TEST",
+                  version: "50",
+                  checksum: "AD02",
+                  unknown_fields: [
+                    {{9, 9, 99, 99, 99}, "12345"},
+                    {{8, 8, 88, 88, 88}, %Measurement{unit: "kWh", value: 678.90}}
+                  ]
+                }}
+    end
+
+    test "are preserved in Telegram.to_string/1" do
+      telegram = %Telegram{
+        header: "TEST",
+        version: "50",
+        checksum: "ABCD",
+        unknown_fields: [
+          {{9, 9, 99, 99, 99}, "12345"},
+          {{8, 8, 88, 88, 88}, %Measurement{unit: "kWh", value: 678.90}}
+        ]
+      }
+
+      result = Telegram.to_string(telegram)
+
+      assert result =~ "9-9:99.99.99(12345)"
+      assert result =~ "8-8:88.88.88(000678.9*kWh)"
+    end
+  end
+
   describe "parse!/2" do
     test "with valid telegram" do
       assert DSMR.parse!("/empty\r\n\r\n!0039\r\n") ==

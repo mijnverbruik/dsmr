@@ -122,6 +122,11 @@ The parsed `%DSMR.Telegram{}` struct contains the following fields:
 **M-Bus Devices** (gas, water, thermal meters)
 - `mbus_devices` - List of `%DSMR.MBusDevice{}` structs with gas/water/heat readings
 
+When the parser encounters OBIS codes that aren't in its mapping table, they're collected in `unknown_fields` as `{obis_tuple, value}` pairs instead of causing a crash. This allows the library to handle:
+- Proprietary meter-specific codes
+- Newer OBIS codes not yet supported
+- Regional variations in smart meter implementations
+
 See [full documentation](https://hexdocs.pm/dsmr/DSMR.Telegram.html) for detailed field descriptions and types.
 
 ### Serialization
@@ -214,6 +219,7 @@ OBIS code mapping is centralized in the `DSMR.OBIS` Elixir module (`lib/dsmr/obi
 Special cases are handled directly in the parser:
 - **MBus devices**: Fields with wildcards (e.g., `0-*:24.1.0`) are grouped by channel
 - **Power failures log**: Nested structure with variable-length event lists
+- **Unknown OBIS codes**: Unrecognized codes are tagged and collected in `unknown_fields` rather than causing parse failures
 
 The final `DSMR.Parser` module coordinates both stages and constructs the final struct with proper type conversions (Decimal, NaiveDateTime, etc.).
 

@@ -38,7 +38,8 @@ defmodule DSMR.Telegram do
     :voltage_l1,
     :voltage_l2,
     :voltage_l3,
-    mbus_devices: []
+    mbus_devices: [],
+    unknown_fields: []
   ]
 
   @type obis_t() ::
@@ -52,6 +53,8 @@ defmodule DSMR.Telegram do
           | DSMR.Measurement.t()
 
   @type obj_t() :: {obis_t(), value_t() | [value_t()]}
+
+  @type unknown_field_t() :: {obis_t(), value_t() | [value_t()]}
 
   @type t() :: %__MODULE__{
           header: String.t(),
@@ -91,7 +94,8 @@ defmodule DSMR.Telegram do
           voltage_l1: DSMR.Measurement.t(),
           voltage_l2: DSMR.Measurement.t(),
           voltage_l3: DSMR.Measurement.t(),
-          mbus_devices: [DSMR.MBusDevice.t()]
+          mbus_devices: [DSMR.MBusDevice.t()],
+          unknown_fields: [unknown_field_t()]
         }
 
   alias DSMR.{Measurement, MBusDevice, OBIS, Timestamp}
@@ -117,6 +121,7 @@ defmodule DSMR.Telegram do
       "",
       telegram_fields_to_lines(telegram),
       mbus_devices_to_lines(telegram.mbus_devices),
+      unknown_fields_to_lines(telegram.unknown_fields),
       "!#{telegram.checksum}"
     ]
 
@@ -264,5 +269,53 @@ defmodule DSMR.Telegram do
 
   defp pad(value) do
     value |> Integer.to_string() |> String.pad_leading(2, "0")
+  end
+
+  defp unknown_fields_to_lines([]), do: []
+
+  defp unknown_fields_to_lines(fields) do
+    Enum.map(fields, fn {code, values} ->
+      obis = format_obis(code)
+      attrs = format_unknown_values(values)
+      "#{obis}#{attrs}"
+    end)
+  end
+
+  defp format_obis({a, b, c, d, e}) do
+    "#{a}-#{b}:#{c}.#{d}.#{e}"
+  end
+
+  defp format_unknown_values(values) when is_list(values) do
+    values
+    |> Enum.map(&format_unknown_value/1)
+    |> Enum.join()
+  end
+
+  defp format_unknown_values(value) do
+    format_unknown_value(value)
+  end
+
+  defp format_unknown_value(%Measurement{} = measurement) do
+    "(#{format_measurement(measurement)})"
+  end
+
+  defp format_unknown_value(%Timestamp{} = timestamp) do
+    "(#{format_timestamp(timestamp)})"
+  end
+
+  defp format_unknown_value({:obis, {a, b, c, d, e}}) do
+    "(#{a}-#{b}:#{c}.#{d}.#{e})"
+  end
+
+  defp format_unknown_value(value) when is_binary(value) do
+    "(#{value})"
+  end
+
+  defp format_unknown_value(value) when is_number(value) do
+    "(#{value})"
+  end
+
+  defp format_unknown_value(nil) do
+    "()"
   end
 end

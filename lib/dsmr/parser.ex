@@ -43,12 +43,18 @@ defmodule DSMR.Parser do
         [{:header, header}, {:checksum, checksum}, {:data, data}] = parsed
         telegram = %Telegram{header: header, checksum: checksum}
 
-        {telegram_fields, mbus_fields} =
+        {telegram_fields, other_fields} =
           data
           |> Enum.split_with(fn
             {:telegram_field, _, _} -> true
-            {:mbus_field, _, _, _} -> false
-            {:unknown_obis, _, _} -> false
+            _ -> false
+          end)
+
+        {mbus_fields, unknown_fields} =
+          other_fields
+          |> Enum.split_with(fn
+            {:mbus_field, _, _, _} -> true
+            _ -> false
           end)
 
         # Process telegram fields
@@ -67,7 +73,14 @@ defmodule DSMR.Parser do
             process_mbus_device(channel, fields, opts)
           end)
 
-        {:ok, %{telegram | mbus_devices: mbus_devices}}
+        # Process unknown OBIS codes
+        unknown =
+          unknown_fields
+          |> Enum.map(fn {:unknown_obis, code, attrs} ->
+            {List.to_tuple(code), extract_value(attrs, opts)}
+          end)
+
+        {:ok, %{telegram | mbus_devices: mbus_devices, unknown_fields: unknown}}
 
       {:error, error_tuple} ->
         {:error, error_tuple}
