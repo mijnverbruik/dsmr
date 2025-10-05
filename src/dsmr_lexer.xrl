@@ -29,9 +29,11 @@ Rules.
 
 Erlang code.
 
-to_obis(TokenChars) -> 
+to_obis(TokenChars) ->
   Tokens = string:tokens(TokenChars, "-:."),
-  lists:map(fun list_to_integer/1, Tokens).
+  [A, B, C, D, E] = lists:map(fun list_to_integer/1, Tokens),
+  %% Extract channel from second position (for MBus devices)
+  {[A, B, C, D, E], B}.
 
 to_timestamp(TokenChars, TokenLen) ->
   TimestampChars = lists:sublist(TokenChars, 1, TokenLen - 1),

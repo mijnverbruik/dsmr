@@ -78,7 +78,7 @@ defmodule DSMR.Parser do
   defp process_telegram_field(telegram, :power_failures_log, value, opts) do
     # Special case: power failures log with nested structure
     # @TODO Raise error if events do not match count.
-    [_count, {:obis, [0, 0, 96, 7, 19]} | events] = value
+    [_count, {:obis, {[0, 0, 96, 7, 19], _}} | events] = value
 
     events =
       events
@@ -119,7 +119,7 @@ defmodule DSMR.Parser do
           _,
           _,
           _,
-          {:obis, [0, 1, 24, 2, 1]},
+          {:obis, {[0, 1, 24, 2, 1], _}},
           {:string, unit},
           {:string, value}
         ] =
