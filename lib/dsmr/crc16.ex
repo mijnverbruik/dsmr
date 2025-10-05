@@ -9,6 +9,7 @@ defmodule DSMR.CRC16 do
     update(0x0000, input)
     |> Integer.to_string(16)
     |> String.pad_leading(4, "0")
+    |> String.upcase()
   end
 
   defp update(crc, <<>>), do: crc

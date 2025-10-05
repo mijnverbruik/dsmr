@@ -352,6 +352,48 @@ defmodule DSMRTest do
                {:ok, %Telegram{header: "foo", version: "42", checksum: "bar"}}
     end
 
+    test "with uppercase hex checksum" do
+      telegram =
+        Enum.join([
+          "/ISk5\\2MT382-1000\r\n",
+          "\r\n",
+          "1-3:0.2.8(50)\r\n",
+          "!5106\r\n"
+        ])
+
+      assert DSMR.parse(telegram) ==
+               {:ok,
+                %Telegram{
+                  header: "ISk5\\2MT382-1000",
+                  version: "50",
+                  checksum: "5106"
+                }}
+
+      telegram_with_letters =
+        Enum.join([
+          "/KFM5KAIFA-METER\r\n",
+          "\r\n",
+          "1-3:0.2.8(42)\r\n",
+          "1-0:1.8.1(001581.123*kWh)\r\n",
+          "1-0:2.8.2(000000.000*kWh)\r\n",
+          "1-0:1.7.0(02.027*kW)\r\n",
+          "1-0:2.7.0(00.000*kW)\r\n",
+          "0-0:96.7.21(00015)\r\n",
+          "1-0:99.97.0(3)(0-0:96.7.19)(000104180320W)(0000237126*s)(000101000001W)",
+          "(2147583646*s)(000102000003W)(2317482647*s)\r\n",
+          "1-0:62.7.0(00.000*kW)\r\n",
+          "0-1:24.2.1(161129200000W)(00981.443*m3)\r\n",
+          "!AA23\r\n"
+        ])
+
+      assert {:ok, %Telegram{checksum: "AA23"}} = DSMR.parse(telegram_with_letters)
+    end
+
+    test "with valid uppercase checksum rejects altered value" do
+      assert {:error, %DSMR.ChecksumError{}} =
+               DSMR.parse("/foo\r\n\r\n1-3:0.2.8(42)\r\n!AAAA\r\n")
+    end
+
     test "with floats as decimals" do
       telegram =
         Enum.join([
