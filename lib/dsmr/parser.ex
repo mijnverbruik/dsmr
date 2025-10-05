@@ -72,7 +72,10 @@ defmodule DSMR.Parser do
       telegram =
         objects
         |> Enum.reduce(telegram, &attrs_from_object(&1, &2, opts))
-        |> Map.put(:mbus_devices, Enum.map(channels, &attrs_from_mbus_device(&1, opts)))
+        |> Map.put(
+          :mbus_devices,
+          channels |> Enum.sort_by(fn {ch, _} -> ch end) |> Enum.map(&attrs_from_mbus_device(&1, opts))
+        )
 
       {:ok, telegram}
     end
