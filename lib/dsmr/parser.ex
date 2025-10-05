@@ -3,6 +3,41 @@ defmodule DSMR.Parser do
 
   alias DSMR.{MBusDevice, Measurement, Telegram, Timestamp}
 
+  # OBIS code -> field mapping for Telegram struct
+  @telegram_obis_map %{
+    [1, 3, 0, 2, 8] => :version,
+    [0, 0, 1, 0, 0] => :measured_at,
+    [0, 0, 96, 1, 1] => :equipment_id,
+    [1, 0, 1, 8, 1] => :electricity_delivered_1,
+    [1, 0, 1, 8, 2] => :electricity_delivered_2,
+    [1, 0, 2, 8, 1] => :electricity_returned_1,
+    [1, 0, 2, 8, 2] => :electricity_returned_2,
+    [0, 0, 96, 14, 0] => :electricity_tariff_indicator,
+    [1, 0, 1, 7, 0] => :electricity_currently_delivered,
+    [1, 0, 2, 7, 0] => :electricity_currently_returned,
+    [0, 0, 96, 7, 21] => :power_failures_count,
+    [0, 0, 96, 7, 9] => :power_failures_long_count,
+    [1, 0, 32, 32, 0] => :voltage_sags_l1_count,
+    [1, 0, 52, 32, 0] => :voltage_sags_l2_count,
+    [1, 0, 72, 32, 0] => :voltage_sags_l3_count,
+    [1, 0, 32, 36, 0] => :voltage_swells_l1_count,
+    [1, 0, 52, 36, 0] => :voltage_swells_l2_count,
+    [1, 0, 72, 36, 0] => :voltage_swells_l3_count,
+    [0, 0, 17, 0, 0] => :actual_threshold_electricity,
+    [0, 0, 96, 3, 10] => :actual_switch_position,
+    [0, 0, 96, 13, 0] => :text_message,
+    [0, 0, 96, 13, 1] => :text_message_code,
+    [1, 0, 31, 7, 0] => :phase_power_current_l1,
+    [1, 0, 51, 7, 0] => :phase_power_current_l2,
+    [1, 0, 71, 7, 0] => :phase_power_current_l3,
+    [1, 0, 21, 7, 0] => :currently_delivered_l1,
+    [1, 0, 41, 7, 0] => :currently_delivered_l2,
+    [1, 0, 61, 7, 0] => :currently_delivered_l3,
+    [1, 0, 22, 7, 0] => :currently_returned_l1,
+    [1, 0, 42, 7, 0] => :currently_returned_l2,
+    [1, 0, 62, 7, 0] => :currently_returned_l3
+  }
+
   @spec parse(binary(), keyword()) ::
           {:ok, Telegram.t()} | {:error, term(), term()} | {:error, term()}
   def parse(input, options) do
@@ -47,54 +82,7 @@ defmodule DSMR.Parser do
     Enum.reduce(objects, %MBusDevice{channel: channel}, &attrs_from_object(&1, &2, opts))
   end
 
-  defp attrs_from_object([{:obis, [1, 3, 0, 2, 8]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | version: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 1, 0, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | measured_at: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 96, 1, 1]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | equipment_id: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 1, 8, 1]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | electricity_delivered_1: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 1, 8, 2]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | electricity_delivered_2: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 2, 8, 1]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | electricity_returned_1: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 2, 8, 2]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | electricity_returned_2: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 96, 14, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | electricity_tariff_indicator: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 1, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | electricity_currently_delivered: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 2, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | electricity_currently_returned: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 96, 7, 21]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | power_failures_count: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 96, 7, 9]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | power_failures_long_count: extract_value(value, opts)}
-  end
-
+  # Special case: power failures log with nested structure
   defp attrs_from_object([{:obis, [1, 0, 99, 97, 0]}, value], %Telegram{} = telegram, opts) do
     # @TODO Raise error if events do not match count.
     [_count, {:obis, [0, 0, 96, 7, 19]} | events] = value
@@ -107,80 +95,12 @@ defmodule DSMR.Parser do
     %{telegram | power_failures_log: events}
   end
 
-  defp attrs_from_object([{:obis, [1, 0, 32, 32, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | voltage_sags_l1_count: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 52, 32, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | voltage_sags_l2_count: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 72, 32, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | voltage_sags_l3_count: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 32, 36, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | voltage_swells_l1_count: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 52, 36, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | voltage_swells_l2_count: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 72, 36, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | voltage_swells_l3_count: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 17, 0, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | actual_threshold_electricity: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 96, 3, 10]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | actual_switch_position: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 96, 13, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | text_message: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [0, 0, 96, 13, 1]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | text_message_code: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 31, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | phase_power_current_l1: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 51, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | phase_power_current_l2: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 71, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | phase_power_current_l3: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 21, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | currently_delivered_l1: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 41, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | currently_delivered_l2: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 61, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | currently_delivered_l3: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 22, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | currently_returned_l1: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 42, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | currently_returned_l2: extract_value(value, opts)}
-  end
-
-  defp attrs_from_object([{:obis, [1, 0, 62, 7, 0]}, value], %Telegram{} = telegram, opts) do
-    %{telegram | currently_returned_l3: extract_value(value, opts)}
+  # Generic OBIS handler for Telegram struct using lookup table
+  defp attrs_from_object([{:obis, code}, value], %Telegram{} = telegram, opts) do
+    case Map.get(@telegram_obis_map, code) do
+      nil -> telegram
+      field -> Map.put(telegram, field, extract_value(value, opts))
+    end
   end
 
   defp attrs_from_object(
