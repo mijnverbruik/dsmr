@@ -38,51 +38,28 @@ extract({T, _, V}) ->
   {T, V}.
 
 %% Map OBIS codes to telegram field names
-%% Now using channel extracted from lexer
-map_obis_to_field({obis, _, {[1,3,0,2,8], _}}, Attrs) -> {telegram_field, version, Attrs};
-map_obis_to_field({obis, _, {[0,0,1,0,0], _}}, Attrs) -> {telegram_field, measured_at, Attrs};
-map_obis_to_field({obis, _, {[0,0,96,1,1], _}}, Attrs) -> {telegram_field, equipment_id, Attrs};
-map_obis_to_field({obis, _, {[1,0,1,8,1], _}}, Attrs) -> {telegram_field, electricity_delivered_1, Attrs};
-map_obis_to_field({obis, _, {[1,0,1,8,2], _}}, Attrs) -> {telegram_field, electricity_delivered_2, Attrs};
-map_obis_to_field({obis, _, {[1,0,2,8,1], _}}, Attrs) -> {telegram_field, electricity_returned_1, Attrs};
-map_obis_to_field({obis, _, {[1,0,2,8,2], _}}, Attrs) -> {telegram_field, electricity_returned_2, Attrs};
-map_obis_to_field({obis, _, {[0,0,96,14,0], _}}, Attrs) -> {telegram_field, electricity_tariff_indicator, Attrs};
-map_obis_to_field({obis, _, {[1,0,1,7,0], _}}, Attrs) -> {telegram_field, electricity_currently_delivered, Attrs};
-map_obis_to_field({obis, _, {[1,0,2,7,0], _}}, Attrs) -> {telegram_field, electricity_currently_returned, Attrs};
-map_obis_to_field({obis, _, {[0,0,96,7,21], _}}, Attrs) -> {telegram_field, power_failures_count, Attrs};
-map_obis_to_field({obis, _, {[0,0,96,7,9], _}}, Attrs) -> {telegram_field, power_failures_long_count, Attrs};
-map_obis_to_field({obis, _, {[1,0,32,32,0], _}}, Attrs) -> {telegram_field, voltage_sags_l1_count, Attrs};
-map_obis_to_field({obis, _, {[1,0,52,32,0], _}}, Attrs) -> {telegram_field, voltage_sags_l2_count, Attrs};
-map_obis_to_field({obis, _, {[1,0,72,32,0], _}}, Attrs) -> {telegram_field, voltage_sags_l3_count, Attrs};
-map_obis_to_field({obis, _, {[1,0,32,36,0], _}}, Attrs) -> {telegram_field, voltage_swells_l1_count, Attrs};
-map_obis_to_field({obis, _, {[1,0,52,36,0], _}}, Attrs) -> {telegram_field, voltage_swells_l2_count, Attrs};
-map_obis_to_field({obis, _, {[1,0,72,36,0], _}}, Attrs) -> {telegram_field, voltage_swells_l3_count, Attrs};
-map_obis_to_field({obis, _, {[0,0,17,0,0], _}}, Attrs) -> {telegram_field, actual_threshold_electricity, Attrs};
-map_obis_to_field({obis, _, {[0,0,96,3,10], _}}, Attrs) -> {telegram_field, actual_switch_position, Attrs};
-map_obis_to_field({obis, _, {[0,0,96,13,0], _}}, Attrs) -> {telegram_field, text_message, Attrs};
-map_obis_to_field({obis, _, {[0,0,96,13,1], _}}, Attrs) -> {telegram_field, text_message_code, Attrs};
-map_obis_to_field({obis, _, {[1,0,31,7,0], _}}, Attrs) -> {telegram_field, phase_power_current_l1, Attrs};
-map_obis_to_field({obis, _, {[1,0,51,7,0], _}}, Attrs) -> {telegram_field, phase_power_current_l2, Attrs};
-map_obis_to_field({obis, _, {[1,0,71,7,0], _}}, Attrs) -> {telegram_field, phase_power_current_l3, Attrs};
-map_obis_to_field({obis, _, {[1,0,21,7,0], _}}, Attrs) -> {telegram_field, currently_delivered_l1, Attrs};
-map_obis_to_field({obis, _, {[1,0,41,7,0], _}}, Attrs) -> {telegram_field, currently_delivered_l2, Attrs};
-map_obis_to_field({obis, _, {[1,0,61,7,0], _}}, Attrs) -> {telegram_field, currently_delivered_l3, Attrs};
-map_obis_to_field({obis, _, {[1,0,22,7,0], _}}, Attrs) -> {telegram_field, currently_returned_l1, Attrs};
-map_obis_to_field({obis, _, {[1,0,42,7,0], _}}, Attrs) -> {telegram_field, currently_returned_l2, Attrs};
-map_obis_to_field({obis, _, {[1,0,62,7,0], _}}, Attrs) -> {telegram_field, currently_returned_l3, Attrs};
+%% Uses DSMR.OBIS Elixir module as single source of truth for standard mappings.
+%% Special cases (MBus devices, power failures log) are handled here due to wildcards.
 
-%% Special cases and MBus devices - now using Channel from lexer
-map_obis_to_field({obis, _, {[1,0,99,97,0], _}}, Attrs) -> {telegram_field, power_failures_log, Attrs};
-map_obis_to_field({obis, _, {[0,_,24,1,0], Channel}}, Attrs) -> {mbus_field, Channel, device_type, Attrs};
-map_obis_to_field({obis, _, {[0,_,96,1,0], Channel}}, Attrs) -> {mbus_field, Channel, equipment_id, Attrs};
-map_obis_to_field({obis, _, {[0,_,24,2,1], Channel}}, Attrs) -> {mbus_field, Channel, last_reading, Attrs};
-map_obis_to_field({obis, _, {[0,1,24,4,0], _}}, Attrs) -> {mbus_field, 1, valve_position, Attrs};
-map_obis_to_field({obis, _, {[0,1,24,3,0], _}}, Attrs) -> {mbus_field, 1, legacy_gas_reading, Attrs};
+%% Special case: power failures log (needs special processing in parser)
+map_obis_to_field({obis, _, {[1,0,99,97,0], _}}, Attrs) ->
+  {telegram_field, power_failures_log, Attrs};
 
-%% Voltage fields (DSMR 5.0+)
-map_obis_to_field({obis, _, {[1,0,32,7,0], _}}, Attrs) -> {telegram_field, voltage_l1, Attrs};
-map_obis_to_field({obis, _, {[1,0,52,7,0], _}}, Attrs) -> {telegram_field, voltage_l2, Attrs};
-map_obis_to_field({obis, _, {[1,0,72,7,0], _}}, Attrs) -> {telegram_field, voltage_l3, Attrs};
+%% MBus device fields - these patterns use wildcards so can't be in the map
+map_obis_to_field({obis, _, {[0,_,24,1,0], Channel}}, Attrs) ->
+  {mbus_field, Channel, device_type, Attrs};
+map_obis_to_field({obis, _, {[0,_,96,1,0], Channel}}, Attrs) ->
+  {mbus_field, Channel, equipment_id, Attrs};
+map_obis_to_field({obis, _, {[0,_,24,2,1], Channel}}, Attrs) ->
+  {mbus_field, Channel, last_reading, Attrs};
+map_obis_to_field({obis, _, {[0,1,24,4,0], _}}, Attrs) ->
+  {mbus_field, 1, valve_position, Attrs};
+map_obis_to_field({obis, _, {[0,1,24,3,0], _}}, Attrs) ->
+  {mbus_field, 1, legacy_gas_reading, Attrs};
 
-%% Unknown OBIS code - preserve raw structure
-map_obis_to_field({obis, _, {Code, _}}, Attrs) -> {unknown_obis, Code, Attrs}.
+%% Standard telegram fields - delegate to Elixir OBIS module
+map_obis_to_field({obis, _, {Code, _}}, Attrs) ->
+  case 'Elixir.DSMR.OBIS':get_field(Code) of
+    nil -> {unknown_obis, Code, Attrs};
+    Field -> {telegram_field, Field, Attrs}
+  end.

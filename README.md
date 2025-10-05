@@ -57,7 +57,60 @@ DSMR.parse(telegram)
 #=> {:ok, %DSMR.Telegram{header: "KFM5KAIFA-METER", version: "42", electricity_delivered_1: %Measurement{unit: "kWh",value: Decimal.new("1581.123")}, ...]}
 ```
 
+### Serialization
+
+You can convert a `Telegram` struct back to its string representation:
+
+```elixir
+telegram = %DSMR.Telegram{
+  header: "KFM5KAIFA-METER",
+  checksum: "6796",
+  version: "42",
+  measured_at: %DSMR.Timestamp{
+    value: ~N[2016-11-13 20:57:57],
+    dst: "W"
+  },
+  electricity_delivered_1: %DSMR.Measurement{value: Decimal.new("1581.123"), unit: "kWh"}
+}
+
+DSMR.Telegram.to_string(telegram)
+#=> "/KFM5KAIFA-METER\r\n\r\n1-3:0.2.8(42)\r\n0-0:1.0.0(161113205757W)\r\n1-0:1.8.1(001581.123*kWh)\r\n!6796\r\n"
+```
+
 <!-- MDOC !-->
+
+## How it Works
+
+This library uses a two-stage parsing architecture built on Erlang's **leex** (lexical analyzer) and **yecc** (parser generator):
+
+### Stage 1: Lexical Analysis (leex)
+
+The lexer (`src/dsmr_lexer.xrl`) tokenizes raw DSMR telegram data into structured tokens:
+
+- **OBIS codes**: Pattern `1-0:1.8.1` → `{obis, Line, {[1,0,1,8,1], Channel}}`
+- **Timestamps**: Pattern `161113205757W` → `{timestamp, Line, {[16,11,13,20,57,57], "W"}}`
+- **Measurements**: Float/int values like `001581.123` → `{float, Line, "001581.123"}`
+- **Headers/Footers**: `/KFM5KAIFA-METER` and `!6796` → `{header, ...}` / `{checksum, ...}`
+
+The lexer also extracts the MBus channel number from OBIS codes (second position) for single-pass processing of multi-device telegrams.
+
+### Stage 2: Parsing (yecc)
+
+The parser (`src/dsmr_parser.yrl`) uses grammar rules to transform tokens into the `DSMR.Telegram` struct:
+
+```erlang
+object -> obis attributes : map_obis_to_field('$1', '$2').
+attribute -> '(' value ')' : '$2'.
+value -> float '*' string : extract_measurement('$1', '$3').
+```
+
+OBIS code mapping is centralized in the `DSMR.OBIS` Elixir module, which serves as the single source of truth for all field mappings. The parser calls this module at runtime to map OBIS codes like `[1,0,1,8,1]` to field names like `:electricity_delivered_1`.
+
+Special cases are handled directly in the parser:
+- **MBus devices**: Fields with wildcards (e.g., `0-*:24.1.0`) are grouped by channel
+- **Power failures log**: Nested structure with variable-length event lists
+
+The final `DSMR.Parser` module coordinates both stages and constructs the final struct with proper type conversions (Decimal, NaiveDateTime, etc.).
 
 See the [online documentation](https://hexdocs.pm/dsmr) for more information.
 
