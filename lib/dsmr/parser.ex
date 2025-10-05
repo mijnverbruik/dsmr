@@ -38,6 +38,15 @@ defmodule DSMR.Parser do
     [1, 0, 62, 7, 0] => :currently_returned_l3
   }
 
+  @doc """
+  Parses DSMR telegram input into a structured Telegram.
+
+  Returns `{:ok, telegram}` on success.
+
+  On error, returns:
+  - `{:error, {line, :dsmr_lexer, reason}, rest}` for lexical errors
+  - `{:error, {line, :dsmr_parser, message}}` for parse errors
+  """
   @spec parse(binary(), keyword()) ::
           {:ok, Telegram.t()} | {:error, term(), term()} | {:error, term()}
   def parse(input, options) do
@@ -54,30 +63,40 @@ defmodule DSMR.Parser do
   end
 
   defp do_lex(chars) do
-    with {:ok, tokens, _} <- :dsmr_lexer.string(chars) do
-      {:ok, tokens}
+    case :dsmr_lexer.string(chars) do
+      {:ok, tokens, _} ->
+        {:ok, tokens}
+
+      {:error, error_tuple, rest} ->
+        {:error, error_tuple, rest}
     end
   end
 
   defp do_parse(tokens, opts) do
-    with {:ok, parsed} <- :dsmr_parser.parse(tokens) do
-      [{:header, header}, {:checksum, checksum}, {:data, data}] = parsed
-      telegram = %Telegram{header: header, checksum: checksum}
+    case :dsmr_parser.parse(tokens) do
+      {:ok, parsed} ->
+        [{:header, header}, {:checksum, checksum}, {:data, data}] = parsed
+        telegram = %Telegram{header: header, checksum: checksum}
 
-      {objects, channels} =
-        data
-        |> Enum.group_by(&group_by_mbus_channels/1)
-        |> Map.pop(0, [])
+        {objects, channels} =
+          data
+          |> Enum.group_by(&group_by_mbus_channels/1)
+          |> Map.pop(0, [])
 
-      telegram =
-        objects
-        |> Enum.reduce(telegram, &attrs_from_object(&1, &2, opts))
-        |> Map.put(
-          :mbus_devices,
-          channels |> Enum.sort_by(fn {ch, _} -> ch end) |> Enum.map(&attrs_from_mbus_device(&1, opts))
-        )
+        telegram =
+          objects
+          |> Enum.reduce(telegram, &attrs_from_object(&1, &2, opts))
+          |> Map.put(
+            :mbus_devices,
+            channels
+            |> Enum.sort_by(fn {ch, _} -> ch end)
+            |> Enum.map(&attrs_from_mbus_device(&1, opts))
+          )
 
-      {:ok, telegram}
+        {:ok, telegram}
+
+      {:error, error_tuple} ->
+        {:error, error_tuple}
     end
   end
 

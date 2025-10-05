@@ -79,12 +79,14 @@ defmodule DSMR do
       {:error, format_parse_error(error)}
   end
 
-  defp format_parse_error({_, :dsmr_lexer, _}) do
-    %DSMR.ParseError{message: "unexpected character while parsing"}
+  defp format_parse_error({line, :dsmr_lexer, reason}) do
+    detail = :dsmr_lexer.format_error(reason)
+    %DSMR.ParseError{message: "unexpected character while parsing (line #{line}: #{detail})"}
   end
 
-  defp format_parse_error({_, :dsmr_parser, _}) do
-    %DSMR.ParseError{message: "unexpected token while parsing"}
+  defp format_parse_error({line, :dsmr_parser, message}) do
+    detail = if is_list(message), do: IO.iodata_to_binary(message), else: inspect(message)
+    %DSMR.ParseError{message: "unexpected token while parsing (line #{line}: #{detail})"}
   end
 
   defp format_parse_error(%{} = error) do

@@ -331,13 +331,15 @@ defmodule DSMRTest do
     end
 
     test "with invalid telegram while lexing" do
-      assert DSMR.parse("invalid$foo") ==
-               {:error, %DSMR.ParseError{message: "unexpected character while parsing"}}
+      {:error, %DSMR.ParseError{message: message}} = DSMR.parse("invalid$foo")
+      assert message =~ "unexpected character while parsing"
+      assert message =~ "line 1"
     end
 
     test "with invalid telegram while parsing" do
-      assert DSMR.parse("invalid!foo") ==
-               {:error, %DSMR.ParseError{message: "unexpected token while parsing"}}
+      {:error, %DSMR.ParseError{message: message}} = DSMR.parse("invalid!foo")
+      assert message =~ "unexpected token while parsing"
+      assert message =~ "line 1"
     end
 
     test "with invalid checksum" do
@@ -430,9 +432,13 @@ defmodule DSMRTest do
     end
 
     test "with invalid telegram" do
-      assert_raise DSMR.ParseError, "unexpected token while parsing", fn ->
-        DSMR.parse!("invalid")
-      end
+      error =
+        assert_raise DSMR.ParseError, fn ->
+          DSMR.parse!("invalid")
+        end
+
+      assert error.message =~ "unexpected token while parsing"
+      assert error.message =~ "line 1"
     end
   end
 end
