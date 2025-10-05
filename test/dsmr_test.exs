@@ -394,6 +394,24 @@ defmodule DSMRTest do
                DSMR.parse("/foo\r\n\r\n1-3:0.2.8(42)\r\n!AAAA\r\n")
     end
 
+    test "with ! in header" do
+      telegram =
+        Enum.join([
+          "/ACME!MTR\r\n",
+          "\r\n",
+          "1-3:0.2.8(50)\r\n",
+          "!8B4C\r\n"
+        ])
+
+      assert DSMR.parse(telegram) ==
+               {:ok,
+                %Telegram{
+                  header: "ACME!MTR",
+                  version: "50",
+                  checksum: "8B4C"
+                }}
+    end
+
     test "with floats as decimals" do
       telegram =
         Enum.join([

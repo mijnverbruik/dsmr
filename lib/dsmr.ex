@@ -105,13 +105,18 @@ defmodule DSMR do
   defp valid_checksum?(%DSMR.Telegram{checksum: ""}, _string, _), do: :ok
 
   defp valid_checksum?(%DSMR.Telegram{} = telegram, string, _) do
-    [raw, _rest] = String.split(string, "!")
-    checksum = DSMR.CRC16.checksum(raw <> "!")
+    case String.split(string, "!", parts: 2) do
+      [raw, _rest] ->
+        checksum = DSMR.CRC16.checksum(raw <> "!")
 
-    if checksum === telegram.checksum do
-      :ok
-    else
-      {:error, %ChecksumError{checksum: checksum}}
+        if checksum === telegram.checksum do
+          :ok
+        else
+          {:error, %ChecksumError{checksum: checksum}}
+        end
+
+      [_] ->
+        {:error, %ParseError{message: "checksum delimiter '!' not found"}}
     end
   end
 end
