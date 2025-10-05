@@ -52,10 +52,10 @@ map_obis_to_field({obis, _, {[0,_,96,1,0], Channel}}, Attrs) ->
   {mbus_field, Channel, equipment_id, Attrs};
 map_obis_to_field({obis, _, {[0,_,24,2,1], Channel}}, Attrs) ->
   {mbus_field, Channel, last_reading, Attrs};
-map_obis_to_field({obis, _, {[0,1,24,4,0], _}}, Attrs) ->
-  {mbus_field, 1, valve_position, Attrs};
-map_obis_to_field({obis, _, {[0,1,24,3,0], _}}, Attrs) ->
-  {mbus_field, 1, legacy_gas_reading, Attrs};
+map_obis_to_field({obis, _, {[0,_,24,4,0], Channel}}, Attrs) ->
+  {mbus_field, Channel, valve_position, Attrs};
+map_obis_to_field({obis, _, {[0,_,24,3,0], Channel}}, Attrs) ->
+  {mbus_field, Channel, legacy_gas_reading, Attrs};
 
 %% Standard telegram fields - delegate to Elixir OBIS module
 map_obis_to_field({obis, _, {Code, _}}, Attrs) ->

@@ -488,6 +488,107 @@ defmodule DSMRTest do
     end
   end
 
+  describe "multi-channel M-Bus support" do
+    test "valve position works on channel 2" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-2:24.1.0(003)\r\n",
+          "0-2:96.1.0(1234567890123456)\r\n",
+          "0-2:24.2.1(230101120000W)(00123.456*m3)\r\n",
+          "0-2:24.4.0(2)\r\n",
+          "!C3A6\r\n"
+        ])
+
+      assert DSMR.parse(telegram) ==
+               {:ok,
+                %Telegram{
+                  header: "TEST",
+                  checksum: "C3A6",
+                  mbus_devices: [
+                    %DSMR.MBusDevice{
+                      channel: 2,
+                      device_type: "003",
+                      equipment_id: "1234567890123456",
+                      last_reading_measured_at: %DSMR.Timestamp{
+                        value: ~N[2023-01-01 12:00:00],
+                        dst: "W"
+                      },
+                      last_reading_value: %DSMR.Measurement{value: 123.456, unit: "m3"},
+                      valve_position: "2"
+                    }
+                  ]
+                }}
+    end
+
+    test "legacy gas reading works on channel 3" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-3:24.1.0(003)\r\n",
+          "0-3:96.1.0(9876543210987654)\r\n",
+          "0-3:24.3.0(220615180000)(00)(60)(1)(0-3:24.2.1)(m3)\r\n",
+          "(00456.789)\r\n",
+          "!36A1\r\n"
+        ])
+
+      assert DSMR.parse(telegram) ==
+               {:ok,
+                %Telegram{
+                  header: "TEST",
+                  checksum: "36A1",
+                  mbus_devices: [
+                    %DSMR.MBusDevice{
+                      channel: 3,
+                      device_type: "003",
+                      equipment_id: "9876543210987654",
+                      last_reading_measured_at: %DSMR.Timestamp{
+                        value: ~N[2022-06-15 18:00:00],
+                        dst: nil
+                      },
+                      last_reading_value: %DSMR.Measurement{value: 456.789, unit: "m3"}
+                    }
+                  ]
+                }}
+    end
+
+    test "valve position and legacy gas reading work on channel 4" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-4:24.1.0(007)\r\n",
+          "0-4:96.1.0(ABCD1234ABCD1234)\r\n",
+          "0-4:24.3.0(211201090000)(00)(60)(1)(0-4:24.2.1)(m3)\r\n",
+          "(00789.012)\r\n",
+          "0-4:24.4.0(3)\r\n",
+          "!5EE1\r\n"
+        ])
+
+      assert DSMR.parse(telegram) ==
+               {:ok,
+                %Telegram{
+                  header: "TEST",
+                  checksum: "5EE1",
+                  mbus_devices: [
+                    %DSMR.MBusDevice{
+                      channel: 4,
+                      device_type: "007",
+                      equipment_id: "ABCD1234ABCD1234",
+                      last_reading_measured_at: %DSMR.Timestamp{
+                        value: ~N[2021-12-01 09:00:00],
+                        dst: nil
+                      },
+                      last_reading_value: %DSMR.Measurement{value: 789.012, unit: "m3"},
+                      valve_position: "3"
+                    }
+                  ]
+                }}
+    end
+  end
+
   describe "parse!/2" do
     test "with valid telegram" do
       assert DSMR.parse!("/empty\r\n\r\n!0039\r\n") ==

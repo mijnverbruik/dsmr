@@ -121,13 +121,13 @@ defmodule DSMR.Parser do
       {:mbus_field, _, :valve_position, attrs}, mbus_device ->
         %{mbus_device | valve_position: extract_value(attrs, opts)}
 
-      {:mbus_field, _, :legacy_gas_reading, attrs}, mbus_device ->
+      {:mbus_field, channel, :legacy_gas_reading, attrs}, mbus_device ->
         [
           {:string, timestamp},
           _,
           _,
           _,
-          {:obis, {[0, 1, 24, 2, 1], _}},
+          {:obis, {[0, ^channel, 24, 2, 1], _}},
           {:string, unit},
           {:string, value}
         ] =
