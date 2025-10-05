@@ -503,5 +503,28 @@ defmodule DSMRTest do
       assert error.message =~ "unexpected token while parsing"
       assert error.message =~ "line 1"
     end
+
+    test "with power failure log count mismatch" do
+      telegram =
+        Enum.join(
+          [
+            "/KFM5KAIFA-METER\r\n",
+            "\r\n",
+            "0-0:1.0.0(170102192002W)\r\n",
+            # Claim 5 events but only provide 3 (6 data items = 3 pairs)
+            "1-0:99.97.0(5)(0-0:96.7.19)(000104180320W)(0000237126*s)(000101000001W)(2147583646*s)(000102000003W)(2317482647*s)\r\n",
+            "!AA23\r\n"
+          ],
+          ""
+        )
+
+      error =
+        assert_raise DSMR.ParseError, fn ->
+          DSMR.parse!(telegram)
+        end
+
+      assert error.message ==
+               "An unexpected error occurred while parsing: Power failures log count mismatch: expected 5 events, but got 3"
+    end
   end
 end

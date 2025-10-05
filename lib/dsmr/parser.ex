@@ -77,8 +77,16 @@ defmodule DSMR.Parser do
   # Process telegram field - now field name comes from parser
   defp process_telegram_field(telegram, :power_failures_log, value, opts) do
     # Special case: power failures log with nested structure
-    # @TODO Raise error if events do not match count.
-    [_count, {:obis, {[0, 0, 96, 7, 19], _}} | events] = value
+    [{:string, count_str}, {:obis, {[0, 0, 96, 7, 19], _}} | events] = value
+    count = String.to_integer(count_str)
+
+    # Each event consists of 2 elements (timestamp and duration)
+    actual_count = div(length(events), 2)
+
+    if actual_count != count do
+      raise ArgumentError,
+            "Power failures log count mismatch: expected #{count} events, but got #{actual_count}"
+    end
 
     events =
       events
