@@ -306,6 +306,9 @@ defmodule DSMRTest do
                   currently_returned_l1: %DSMR.Measurement{unit: "kW", value: 0.0},
                   currently_returned_l2: %DSMR.Measurement{unit: "kW", value: 0.0},
                   currently_returned_l3: %DSMR.Measurement{unit: "kW", value: 0.0},
+                  voltage_l1: %DSMR.Measurement{unit: "V", value: 230.0},
+                  voltage_l2: %DSMR.Measurement{unit: "V", value: 230.0},
+                  voltage_l3: %DSMR.Measurement{unit: "V", value: 229.0},
                   mbus_devices: [
                     %DSMR.MBusDevice{
                       channel: 1,

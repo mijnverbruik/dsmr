@@ -35,6 +35,9 @@ defmodule DSMR.Telegram do
     :currently_returned_l1,
     :currently_returned_l2,
     :currently_returned_l3,
+    :voltage_l1,
+    :voltage_l2,
+    :voltage_l3,
     mbus_devices: []
   ]
 
@@ -85,6 +88,9 @@ defmodule DSMR.Telegram do
           currently_returned_l1: DSMR.Measurement.t(),
           currently_returned_l2: DSMR.Measurement.t(),
           currently_returned_l3: DSMR.Measurement.t(),
+          voltage_l1: DSMR.Measurement.t(),
+          voltage_l2: DSMR.Measurement.t(),
+          voltage_l3: DSMR.Measurement.t(),
           mbus_devices: [DSMR.MBusDevice.t()]
         }
 end
