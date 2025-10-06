@@ -1,6 +1,8 @@
 defmodule DSMR.TelegramTest do
   use ExUnit.Case, async: true
 
+  import DSMR.TelegramFixtures
+
   alias DSMR.{Measurement, MBusDevice, Telegram, Timestamp}
 
   describe "to_string/1" do
@@ -347,6 +349,169 @@ defmodule DSMR.TelegramTest do
       result = Telegram.to_string(telegram)
 
       assert result =~ "1-0:1.8.1(001581.123*kWh)"
+    end
+  end
+
+  describe "complete roundtrip tests" do
+    test "roundtrip DSMR v2.2 telegram" do
+      original = dsmr_v22_telegram()
+
+      {:ok, parsed} = DSMR.parse(original, checksum: false)
+      converted = Telegram.to_string(parsed)
+      {:ok, reparsed} = DSMR.parse(converted, checksum: false)
+
+      assert reparsed.header == parsed.header
+      assert reparsed.equipment_id == parsed.equipment_id
+      assert reparsed.electricity_delivered_1.value == parsed.electricity_delivered_1.value
+    end
+
+    test "roundtrip DSMR v3.0 telegram" do
+      original = dsmr_v30_telegram()
+
+      {:ok, parsed} = DSMR.parse(original, checksum: false)
+      converted = Telegram.to_string(parsed)
+      {:ok, reparsed} = DSMR.parse(converted, checksum: false)
+
+      assert reparsed.header == parsed.header
+      assert reparsed.electricity_delivered_1.value == parsed.electricity_delivered_1.value
+      assert reparsed.text_message_code == parsed.text_message_code
+    end
+
+    test "roundtrip DSMR v4.0 telegram with power failures" do
+      original = dsmr_v40_telegram()
+
+      {:ok, parsed} = DSMR.parse(original, checksum: false)
+      converted = Telegram.to_string(parsed)
+      {:ok, reparsed} = DSMR.parse(converted, checksum: false)
+
+      assert reparsed.version == parsed.version
+      assert length(reparsed.power_failures_log) == length(parsed.power_failures_log)
+      assert reparsed.power_failures_count == parsed.power_failures_count
+    end
+
+    test "roundtrip telegram with all major fields populated" do
+      original = full_featured_telegram()
+
+      {:ok, parsed} = DSMR.parse(original, checksum: false)
+      converted = Telegram.to_string(parsed)
+      {:ok, reparsed} = DSMR.parse(converted, checksum: false)
+
+      # Verify all major field categories
+      assert reparsed.version == parsed.version
+      assert reparsed.measured_at == parsed.measured_at
+      assert reparsed.electricity_delivered_1.value == parsed.electricity_delivered_1.value
+      assert reparsed.voltage_l1.value == parsed.voltage_l1.value
+      assert reparsed.voltage_l2.value == parsed.voltage_l2.value
+      assert reparsed.voltage_l3.value == parsed.voltage_l3.value
+      assert reparsed.phase_power_current_l1.value == parsed.phase_power_current_l1.value
+      assert length(reparsed.mbus_devices) == length(parsed.mbus_devices)
+    end
+
+    test "roundtrip telegram with minimal fields" do
+      telegram = %Telegram{
+        header: "MINIMAL",
+        checksum: "0000"
+      }
+
+      converted = Telegram.to_string(telegram)
+      {:ok, reparsed} = DSMR.parse(converted, checksum: false)
+
+      assert reparsed.header == telegram.header
+      assert reparsed.checksum == telegram.checksum
+    end
+
+    test "roundtrip telegram with maximum M-Bus devices" do
+      telegram = %Telegram{
+        header: "TEST",
+        checksum: "0000",
+        mbus_devices: [
+          %MBusDevice{
+            channel: 1,
+            device_type: "003",
+            equipment_id: "1111111111111111",
+            last_reading_measured_at: %Timestamp{value: ~N[2023-01-01 12:00:00], dst: "W"},
+            last_reading_value: %Measurement{value: 111.111, unit: "m3"}
+          },
+          %MBusDevice{
+            channel: 2,
+            device_type: "003",
+            equipment_id: "2222222222222222",
+            last_reading_measured_at: %Timestamp{value: ~N[2023-01-01 12:00:00], dst: "W"},
+            last_reading_value: %Measurement{value: 222.222, unit: "m3"}
+          },
+          %MBusDevice{
+            channel: 3,
+            device_type: "007",
+            equipment_id: "3333333333333333",
+            last_reading_measured_at: %Timestamp{value: ~N[2023-01-01 12:00:00], dst: "W"},
+            last_reading_value: %Measurement{value: 333.333, unit: "m3"}
+          },
+          %MBusDevice{
+            channel: 4,
+            device_type: "003",
+            equipment_id: "4444444444444444",
+            last_reading_measured_at: %Timestamp{value: ~N[2023-01-01 12:00:00], dst: "W"},
+            last_reading_value: %Measurement{value: 444.444, unit: "m3"}
+          }
+        ]
+      }
+
+      converted = Telegram.to_string(telegram)
+      {:ok, reparsed} = DSMR.parse(converted, checksum: false)
+
+      assert length(reparsed.mbus_devices) == 4
+      assert Enum.at(reparsed.mbus_devices, 0).channel == 1
+      assert Enum.at(reparsed.mbus_devices, 3).channel == 4
+    end
+
+    test "roundtrip telegram with power failures log (large)" do
+      events =
+        for i <- 1..20 do
+          [
+            %Timestamp{value: ~N[2000-01-01 00:00:00], dst: "W"},
+            %Measurement{value: i * 1000, unit: "s"}
+          ]
+        end
+
+      telegram = %Telegram{
+        header: "TEST",
+        checksum: "0000",
+        power_failures_log: events
+      }
+
+      converted = Telegram.to_string(telegram)
+      {:ok, reparsed} = DSMR.parse(converted, checksum: false)
+
+      assert length(reparsed.power_failures_log) == 20
+    end
+  end
+
+  describe "serialization edge cases" do
+    test "checksum regeneration after field modification" do
+      {:ok, telegram} = DSMR.parse("/TEST\r\n\r\n1-3:0.2.8(50)\r\n!2A99\r\n")
+
+      # Modify a field
+      modified = %{telegram | version: "42"}
+
+      # Convert to string - checksum stays same but content changed
+      result = Telegram.to_string(modified)
+
+      assert result =~ "1-3:0.2.8(42)"
+      assert result =~ "!2A99"
+    end
+
+    test "serialization with Decimal values" do
+      telegram = %Telegram{
+        header: "TEST",
+        checksum: "0000",
+        electricity_delivered_1: %Measurement{value: Decimal.new("1234.567"), unit: "kWh"},
+        electricity_delivered_2: %Measurement{value: Decimal.new("0.001"), unit: "kWh"}
+      }
+
+      result = Telegram.to_string(telegram)
+
+      assert result =~ "1-0:1.8.1(001234.567*kWh)"
+      assert result =~ "1-0:1.8.2(000000.001*kWh)"
     end
   end
 end

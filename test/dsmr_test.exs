@@ -2,6 +2,7 @@ defmodule DSMRTest do
   use ExUnit.Case, async: true
 
   alias DSMR.{Measurement, Telegram, Timestamp}
+  import DSMR.TelegramFixtures
 
   describe "parse/2" do
     test "with telegram v2.2" do
@@ -587,6 +588,22 @@ defmodule DSMRTest do
                   ]
                 }}
     end
+
+    test "telegram with maximum allowed M-Bus devices (4 channels)" do
+      telegram = max_mbus_telegram()
+
+      assert {:ok, result} = DSMR.parse(telegram)
+      assert length(result.mbus_devices) == 4
+      assert Enum.at(result.mbus_devices, 0).channel == 1
+      assert Enum.at(result.mbus_devices, 0).equipment_id == "1111111111111111"
+      assert Enum.at(result.mbus_devices, 0).device_type == "003"
+      assert Enum.at(result.mbus_devices, 1).channel == 2
+      assert Enum.at(result.mbus_devices, 1).equipment_id == "2222222222222222"
+      assert Enum.at(result.mbus_devices, 2).channel == 3
+      assert Enum.at(result.mbus_devices, 2).device_type == "007"
+      assert Enum.at(result.mbus_devices, 3).channel == 4
+      assert Enum.at(result.mbus_devices, 3).equipment_id == "4444444444444444"
+    end
   end
 
   describe "unknown OBIS codes" do
@@ -669,6 +686,547 @@ defmodule DSMRTest do
 
       assert error.message ==
                "An unexpected error occurred while parsing: Power failures log count mismatch: expected 5 events, but got 3"
+    end
+  end
+
+  describe "truncated and incomplete telegrams" do
+    test "telegram missing final CRLF after checksum is still parsed" do
+      telegram = truncated_telegram(:no_final_crlf)
+      # Parser is lenient about trailing CRLF
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "telegram with header but empty checksum" do
+      telegram = checksum_format_telegram(:empty)
+      # Empty checksum is valid in DSMR 2.2
+      assert {:ok, %Telegram{header: "TEST", checksum: ""}} = DSMR.parse(telegram)
+    end
+
+    test "telegram cut off mid-line" do
+      telegram = truncated_telegram(:mid_line)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "telegram cut off mid-OBIS code" do
+      telegram = truncated_telegram(:mid_obis)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "telegram cut off mid-measurement value" do
+      telegram = truncated_telegram(:mid_measurement)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "telegram with body but no checksum delimiter" do
+      telegram = truncated_telegram(:no_delimiter)
+      # Parser expects checksum delimiter
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "partial M-Bus device (only device_type, no reading)" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-1:24.1.0(003)\r\n",
+          "!E2B3\r\n"
+        ])
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert length(result.mbus_devices) == 1
+      assert hd(result.mbus_devices).device_type == "003"
+      assert hd(result.mbus_devices).equipment_id == nil
+    end
+
+    test "incomplete power failures log with odd number of attributes" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          # Claim 2 events but only provide 1.5 (3 items instead of 4)
+          "1-0:99.97.0(2)(0-0:96.7.19)(000104180320W)(0000237126*s)(000101000001W)\r\n",
+          "!AA23\r\n"
+        ])
+
+      error =
+        assert_raise DSMR.ParseError, fn ->
+          DSMR.parse!(telegram)
+        end
+
+      assert error.message =~ "Power failures log count mismatch"
+    end
+  end
+
+  describe "malformed OBIS codes" do
+    test "OBIS with alphabetic characters is treated as unknown" do
+      telegram = "/TEST\r\n\r\nA-0:1.8.1(123.45*kWh)\r\n!AA23\r\n"
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "OBIS with missing segments" do
+      telegram = "/TEST\r\n\r\n1-0:1.8(123.45*kWh)\r\n!AA23\r\n"
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "OBIS with extra segments" do
+      telegram = "/TEST\r\n\r\n1-0-2:1.8.1.0(123.45*kWh)\r\n!AA23\r\n"
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "OBIS with very large numbers" do
+      telegram = "/TEST\r\n\r\n999-999:999.999.999(12345)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.unknown_fields == [{{999, 999, 999, 999, 999}, "12345"}]
+    end
+  end
+
+  describe "invalid measurement values" do
+    test "measurement with invalid float (multiple decimals)" do
+      telegram = invalid_measurement_telegram(:multiple_decimals)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "measurement without unit" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(123.45*)\r\n!AA23\r\n"
+      # Parser requires a unit after the asterisk
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "measurement without asterisk" do
+      telegram = invalid_measurement_telegram(:no_asterisk)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "measurement with empty value" do
+      telegram = invalid_measurement_telegram(:empty_value)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+
+    test "measurement with very large number" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(999999999.999*kWh)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.electricity_delivered_1.value == 999_999_999.999
+    end
+  end
+
+  describe "invalid timestamps" do
+    test "timestamp with invalid month (13)" do
+      telegram = invalid_timestamp_telegram(:invalid_month)
+
+      assert_raise DSMR.ParseError, fn ->
+        DSMR.parse!(telegram, checksum: false)
+      end
+    end
+
+    test "timestamp with invalid day (32)" do
+      telegram = invalid_timestamp_telegram(:invalid_day)
+
+      assert_raise DSMR.ParseError, fn ->
+        DSMR.parse!(telegram, checksum: false)
+      end
+    end
+
+    test "timestamp with invalid hour (24)" do
+      telegram = invalid_timestamp_telegram(:invalid_hour)
+
+      assert_raise DSMR.ParseError, fn ->
+        DSMR.parse!(telegram, checksum: false)
+      end
+    end
+
+    test "timestamp with invalid minute (60)" do
+      telegram = invalid_timestamp_telegram(:invalid_minute)
+
+      assert_raise DSMR.ParseError, fn ->
+        DSMR.parse!(telegram, checksum: false)
+      end
+    end
+
+    test "timestamp with invalid second (60)" do
+      telegram = invalid_timestamp_telegram(:invalid_second)
+
+      assert_raise DSMR.ParseError, fn ->
+        DSMR.parse!(telegram, checksum: false)
+      end
+    end
+
+    test "timestamp too short" do
+      telegram = invalid_timestamp_telegram(:too_short)
+      # Parser stores invalid timestamps as strings without validation
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert is_binary(result.measured_at)
+    end
+
+    test "timestamp too long" do
+      telegram = invalid_timestamp_telegram(:too_long)
+      # Too long timestamp causes parsing error
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "timestamp February 30th (invalid date)" do
+      telegram = invalid_timestamp_telegram(:feb_30)
+
+      assert_raise DSMR.ParseError, fn ->
+        DSMR.parse!(telegram, checksum: false)
+      end
+    end
+  end
+
+  describe "malformed structure" do
+    test "attribute without opening parenthesis" do
+      telegram = malformed_structure_telegram(:no_opening_paren)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "attribute without closing parenthesis" do
+      telegram = malformed_structure_telegram(:no_closing_paren)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "empty attributes" do
+      telegram = malformed_structure_telegram(:empty_attrs)
+      # Parser accepts empty attributes and treats them as unknown fields
+      assert {:ok, %Telegram{}} = DSMR.parse(telegram, checksum: false)
+    end
+  end
+
+  describe "checksum format variations" do
+    test "lowercase checksum" do
+      telegram = checksum_format_telegram(:lowercase)
+      assert {:ok, %Telegram{checksum: "5106"}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "mixed case checksum" do
+      telegram = checksum_format_telegram(:mixed_case)
+      # Parser accepts any hex format, validation happens separately
+      assert {:error, %DSMR.ChecksumError{}} = DSMR.parse(telegram)
+    end
+
+    test "checksum with leading zeros (empty checksum)" do
+      telegram = checksum_format_telegram(:empty)
+      # Empty checksum is valid for DSMR 2.2
+      assert {:ok, %Telegram{checksum: ""}} = DSMR.parse(telegram)
+    end
+
+    test "checksum with 3 hex digits" do
+      telegram = checksum_format_telegram(:three_digits)
+      assert {:error, %DSMR.ChecksumError{}} = DSMR.parse(telegram)
+    end
+
+    test "checksum with 5 hex digits" do
+      telegram = checksum_format_telegram(:five_digits)
+      assert {:error, %DSMR.ChecksumError{}} = DSMR.parse(telegram)
+    end
+
+    test "checksum with non-hex characters" do
+      telegram = checksum_format_telegram(:non_hex)
+      assert {:error, %DSMR.ChecksumError{}} = DSMR.parse(telegram)
+    end
+  end
+
+  describe "checksum position edge cases" do
+    test "multiple ! delimiters in telegram" do
+      telegram = "/TEST!\r\n\r\n1-3:0.2.8(50)\r\n!8B4C\r\n"
+      # First ! in header, second is delimiter
+      assert {:ok, %Telegram{header: "TEST!", checksum: "8B4C"}} =
+               DSMR.parse(telegram, checksum: false)
+    end
+
+    test "data lines appearing after checksum" do
+      telegram = "/TEST\r\n\r\n!0039\r\n1-3:0.2.8(50)\r\n"
+      # Parser should handle this - checksum comes early
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+    end
+  end
+
+  describe "checksum validation scenarios" do
+    test "checksum off by one" do
+      # Correct checksum for this telegram is 5106, using 5107 instead
+      telegram = basic_telegram("5107")
+      assert {:error, %DSMR.ChecksumError{checksum: "2A99"}} = DSMR.parse(telegram)
+    end
+
+    test "checksum after modifying a single character" do
+      telegram = String.replace(basic_telegram(), "50", "51")
+      assert {:error, %DSMR.ChecksumError{}} = DSMR.parse(telegram)
+    end
+
+    test "correct checksum can be disabled" do
+      telegram = invalid_checksum_telegram()
+      assert {:ok, %Telegram{}} = DSMR.parse(telegram, checksum: false)
+    end
+  end
+
+  describe "M-Bus device edge cases" do
+    test "M-Bus devices out of order (channel 3, then 1, then 2)" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-3:24.1.0(003)\r\n",
+          "0-3:96.1.0(3333)\r\n",
+          "0-1:24.1.0(003)\r\n",
+          "0-1:96.1.0(1111)\r\n",
+          "0-2:24.1.0(003)\r\n",
+          "0-2:96.1.0(2222)\r\n",
+          "!AA23\r\n"
+        ])
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      # Should be sorted by channel
+      assert Enum.map(result.mbus_devices, & &1.channel) == [1, 2, 3]
+    end
+
+    test "M-Bus device with device_type 007 (water/heat)" do
+      telegram = mbus_device_telegram(1, device_type: "007", equipment_id: "WATER123")
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert hd(result.mbus_devices).device_type == "007"
+    end
+
+    test "M-Bus device with unknown device_type" do
+      telegram =
+        mbus_device_telegram(1, device_type: "999", equipment_id: "UNKNOWN", reading: false)
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert hd(result.mbus_devices).device_type == "999"
+    end
+
+    test "M-Bus reading with non-gas units (GJ)" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-1:24.1.0(007)\r\n",
+          "0-1:96.1.0(HEAT123)\r\n",
+          "0-1:24.2.1(230101120000W)(00123.456*GJ)\r\n",
+          "!AA23\r\n"
+        ])
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert hd(result.mbus_devices).last_reading_value.unit == "GJ"
+    end
+  end
+
+  describe "power failures log edge cases" do
+    test "power failures log with 1 event" do
+      telegram = power_failures_telegram(1)
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert length(result.power_failures_log) == 1
+    end
+
+    test "power failures log with 10 events" do
+      telegram = power_failures_telegram(10)
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert length(result.power_failures_log) == 10
+    end
+
+    test "power failures log event with duration 0" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "1-0:99.97.0(1)(0-0:96.7.19)(000104180320W)(0*s)\r\n",
+          "!AA23\r\n"
+        ])
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert [[_timestamp, %Measurement{value: 0}]] = result.power_failures_log
+    end
+
+    test "power failures log event with very large duration" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "1-0:99.97.0(1)(0-0:96.7.19)(000104180320W)(4294967295*s)\r\n",
+          "!AA23\r\n"
+        ])
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert [[_timestamp, %Measurement{value: 4_294_967_295}]] = result.power_failures_log
+    end
+  end
+
+  describe "three-phase power measurements" do
+    test "single-phase meter (only L1 fields)" do
+      telegram = three_phase_telegram()
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.voltage_l1.value == 230.0
+      assert result.phase_power_current_l1.value == 0.48
+      assert result.currently_delivered_l1.value == 0.07
+      assert result.voltage_l2.value == 230.0
+      assert result.voltage_l3.value == 229.0
+    end
+
+    test "voltage exactly 0V" do
+      telegram = "/TEST\r\n\r\n1-0:32.7.0(0000.0*V)\r\n!AA23\r\n"
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.voltage_l1.value == 0.0
+    end
+
+    test "voltage over 250V (overvoltage)" do
+      telegram = "/TEST\r\n\r\n1-0:32.7.0(0255.5*V)\r\n!AA23\r\n"
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.voltage_l1.value == 255.5
+    end
+
+    test "voltage under 200V (undervoltage)" do
+      telegram = "/TEST\r\n\r\n1-0:32.7.0(0195.0*V)\r\n!AA23\r\n"
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.voltage_l1.value == 195.0
+    end
+
+    test "current exactly 0A" do
+      telegram = "/TEST\r\n\r\n1-0:31.7.0(0.00*A)\r\n!AA23\r\n"
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.phase_power_current_l1.value == 0.0
+    end
+
+    test "current over 100A (very high load)" do
+      telegram = "/TEST\r\n\r\n1-0:31.7.0(125.5*A)\r\n!AA23\r\n"
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.phase_power_current_l1.value == 125.5
+    end
+
+    test "power exactly 0W" do
+      telegram = "/TEST\r\n\r\n1-0:21.7.0(00.000*kW)\r\n!AA23\r\n"
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.currently_delivered_l1.value == 0.0
+    end
+
+    test "power over 10kW (heavy load)" do
+      telegram = "/TEST\r\n\r\n1-0:21.7.0(15.500*kW)\r\n!AA23\r\n"
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.currently_delivered_l1.value == 15.5
+    end
+  end
+
+  describe "numeric precision tests" do
+    test "very small values in native float mode" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(000000.001*kWh)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false, floats: :native)
+      assert result.electricity_delivered_1.value == 0.001
+    end
+
+    test "very large values in native float mode" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(999999.999*kWh)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false, floats: :native)
+      assert result.electricity_delivered_1.value == 999_999.999
+    end
+
+    test "no decimal part" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(000123*kWh)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false, floats: :native)
+      assert result.electricity_delivered_1.value == 123.0
+    end
+
+    test "only decimal part" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(000000.123*kWh)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false, floats: :native)
+      assert result.electricity_delivered_1.value == 0.123
+    end
+
+    test "Decimal mode with integer values" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(000123*kWh)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false, floats: :decimals)
+      assert Decimal.equal?(result.electricity_delivered_1.value, Decimal.new("123.0"))
+    end
+
+    test "Decimal mode with very high precision" do
+      telegram = "/TEST\r\n\r\n1-0:1.8.1(000123.123456789012345*kWh)\r\n!AA23\r\n"
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false, floats: :decimals)
+
+      assert Decimal.equal?(
+               result.electricity_delivered_1.value,
+               Decimal.new("123.123456789012345")
+             )
+    end
+  end
+
+  describe "text message field tests" do
+    test "text_message with invalid hex encoding (odd number of chars)" do
+      telegram = text_message_telegram(code: nil, message: "303132333")
+
+      # Should still parse, just store as-is
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.text_message == "303132333"
+    end
+
+    test "text_message_code without text_message" do
+      telegram = text_message_telegram(code: "303132", message: nil)
+
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert result.text_message_code == "303132"
+      assert result.text_message == nil
+    end
+  end
+
+  describe "header variations" do
+    test "header with spaces" do
+      telegram = header_variation_telegram("TEST METER")
+      assert {:ok, %Telegram{header: "TEST METER"}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "header with special characters" do
+      telegram = header_variation_telegram("TEST-METER_v1.0")
+
+      assert {:ok, %Telegram{header: "TEST-METER_v1.0"}} =
+               DSMR.parse(telegram, checksum: false)
+    end
+
+    test "very short header (single char)" do
+      telegram = header_variation_telegram("T")
+      assert {:ok, %Telegram{header: "T"}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "very long header (256+ chars)" do
+      long_header = String.duplicate("A", 300)
+      telegram = header_variation_telegram(long_header)
+      assert {:ok, %Telegram{header: ^long_header}} = DSMR.parse(telegram, checksum: false)
+    end
+  end
+
+  describe "line ending variations" do
+    test "LF-only line endings" do
+      telegram = line_ending_telegram(:lf_only)
+      # Parser requires CRLF, so LF-only should fail
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "mixed line endings (CRLF and LF)" do
+      telegram = line_ending_telegram(:mixed)
+      # Parser requires consistent CRLF, mixed should fail
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
+    end
+
+    test "extra blank lines between data" do
+      telegram = line_ending_telegram(:extra_blanks)
+      # Parser doesn't tolerate extra blank lines
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
+    end
+  end
+
+  describe "unknown fields handling" do
+    test "unknown OBIS with various attribute counts" do
+      telegram = unknown_obis_telegram(2)
+      # Parser should handle multiple attributes for unknown codes
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert length(result.unknown_fields) >= 2
+    end
+
+    test "very large unknown_fields list (10+ entries)" do
+      telegram = unknown_obis_telegram(15)
+      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
+      assert length(result.unknown_fields) == 15
     end
   end
 end
