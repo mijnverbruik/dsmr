@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-22.04
+    env:
+      MIX_ENV: dev
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: erlef/setup-beam@v1
+        id: beam
+        with:
+          otp-version: 27.x
+          elixir-version: 1.18.x
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+      - run: mix deps.get
+      - run: |
+          mix hex.build
+          mix hex.publish --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          make_latest: true

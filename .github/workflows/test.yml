@@ -1,4 +1,4 @@
-name: test
+name: Test
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Test
     runs-on: ubuntu-22.04
     env:
       MIX_ENV: test
@@ -24,13 +25,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ matrix.otp }}
           elixir-version: ${{ matrix.elixir }}
-
       - uses: actions/cache@v4
+        id: cache-deps
         with:
           path: |
             deps
@@ -38,18 +38,13 @@ jobs:
           key: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
             ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-
-
       - run: mix do deps.get --check-locked, deps.compile
         if: steps.cache-deps.outputs.cache-hit != 'true'
-
       - run: mix format --check-formatted
         if: ${{ matrix.lint }}
-
       - run: mix deps.unlock --check-unused
         if: ${{ matrix.lint }}
-
       - run: mix compile --warnings-as-errors
         if: ${{ matrix.lint }}
-
       - name: Run mix test
         run: mix test
