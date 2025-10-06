@@ -26,7 +26,7 @@ Add `dsmr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:dsmr, "~> 0.6"},
+    {:dsmr, "~> 1.0"},
     {:decimal, "~> 2.0"} # Optional: Required only if you want to use floats: :decimals option for arbitrary precision
   ]
 end
