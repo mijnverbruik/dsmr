@@ -26,13 +26,13 @@ Add `dsmr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:dsmr, "~> 0.6"}
-    {:decimal, "~> 2.0"} # Optional: For high-precision decimal values instead of floats, add the Decimal library.
+    {:dsmr, "~> 0.6"},
+    {:decimal, "~> 2.0"} # Optional: Required only if you want to use floats: :decimals option for arbitrary precision
   ]
 end
 ```
 
-When [Decimal](https://hex.pm/packages/decimal) is available, measurement values will be returned as `%Decimal{}` structs. Without it, values are returned as floats.
+By default, measurement values are returned as native floats. To use high-precision `%Decimal{}` structs instead, add the [Decimal](https://hex.pm/packages/decimal) dependency and pass the `floats: :decimals` option to `DSMR.parse/2`.
 
 ## Supported DSMR Versions
 
@@ -89,6 +89,28 @@ telegram =
 
 DSMR.parse(telegram)
 #=> {:ok, %DSMR.Telegram{header: "KFM5KAIFA-METER", version: "42", electricity_delivered_1: %Measurement{unit: "kWh",value: Decimal.new("1581.123")}, ...]}
+```
+
+### Parser Options
+
+`DSMR.parse/2` accepts an optional keyword list of options:
+
+| Option | Values | Default | Description |
+|--------|--------|---------|-------------|
+| `:checksum` | `true` / `false` | `true` | When `false`, skips CRC16 checksum validation. Useful for testing or when processing telegrams from trusted sources. |
+| `:floats` | `:native` / `:decimals` | `:native` | Controls numeric precision:<br>• `:native` - Uses Erlang's native float conversion (faster, may have rounding)<br>• `:decimals` - Returns `Decimal` structs for arbitrary precision (requires the `decimal` package) |
+
+**Examples:**
+
+```elixir
+# Skip checksum validation
+DSMR.parse(telegram, checksum: false)
+
+# Use Decimal for precise calculations
+DSMR.parse(telegram, floats: :decimals)
+
+# Combine options
+DSMR.parse(telegram, checksum: false, floats: :decimals)
 ```
 
 ### Available Telegram Fields
