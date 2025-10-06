@@ -40,7 +40,17 @@ defmodule DSMR.MixProject do
     [
       main: "DSMR",
       source_ref: "v#{@version}",
-      source_url: @source_url
+      source_url: @source_url,
+      extras: [
+        "examples/connect_to_dsmr_meter.livemd",
+        "examples/dummy_smartmeter.livemd"
+      ],
+      groups_for_extras: [
+        Examples: [
+          "examples/connect_to_dsmr_meter.livemd",
+          "examples/dummy_smartmeter.livemd"
+        ]
+      ]
     ]
   end
 
