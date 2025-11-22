@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -12,6 +16,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
     commit-message:
       prefix: "chore"
       include: "scope"
