@@ -1,4 +1,4 @@
-name: Test
+name: test
 
 on:
   pull_request:
@@ -8,11 +8,9 @@ on:
 
 jobs:
   test:
-    name: Test
     runs-on: ubuntu-22.04
     env:
       MIX_ENV: test
-
     strategy:
       fail-fast: false
       matrix:
@@ -22,7 +20,6 @@ jobs:
           - elixir: 1.18.x
             otp: 27.x
             lint: lint
-
     steps:
       - uses: actions/checkout@v6
       - uses: erlef/setup-beam@v1
