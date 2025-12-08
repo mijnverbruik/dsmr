@@ -262,7 +262,7 @@ Everyone is encouraged to help improve this project. Here are a few ways you can
 
 ## License
 
-Copyright (C) 2020 Robin van der Vleuten
+Copyright (C) Robin van der Vleuten
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
