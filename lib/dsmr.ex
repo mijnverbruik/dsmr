@@ -54,9 +54,36 @@ defmodule DSMR do
   def parse(string, options \\ []) when is_binary(string) and is_list(options) do
     validate_checksum = Keyword.get(options, :checksum, true)
 
-    with {:ok, telegram} <- do_parse(string, options),
-         :ok <- valid_checksum?(telegram, string, validate_checksum) do
+    with :ok <- early_checksum_validation(string, validate_checksum),
+         {:ok, telegram} <- do_parse(string, options) do
       {:ok, telegram}
+    end
+  end
+
+  defp early_checksum_validation(_string, false), do: :ok
+
+  defp early_checksum_validation(string, true) do
+    case String.split(string, "!", parts: 2) do
+      [raw, rest] ->
+        # Extract expected checksum from rest (the checksum is after the last "!" in the string)
+        expected_checksum = rest |> String.trim() |> String.split("!") |> List.last() |> String.trim()
+
+        # Empty checksum is valid for DSMR 2.2
+        if expected_checksum === "" do
+          :ok
+        else
+          # Calculate CRC16 on content before first "!"
+          actual_checksum = DSMR.CRC16.checksum(raw <> "!")
+
+          if actual_checksum === expected_checksum do
+            :ok
+          else
+            {:error, %ChecksumError{checksum: actual_checksum}}
+          end
+        end
+
+      [_] ->
+        {:error, %ParseError{message: "checksum delimiter '!' not found"}}
     end
   end
 
@@ -99,24 +126,5 @@ defmodule DSMR do
 
     message = "An unexpected error occurred while parsing" <> detail
     %ParseError{message: message}
-  end
-
-  defp valid_checksum?(_telegram, _string, false), do: :ok
-  defp valid_checksum?(%DSMR.Telegram{checksum: ""}, _string, _), do: :ok
-
-  defp valid_checksum?(%DSMR.Telegram{} = telegram, string, _) do
-    case String.split(string, "!", parts: 2) do
-      [raw, _rest] ->
-        checksum = DSMR.CRC16.checksum(raw <> "!")
-
-        if checksum === telegram.checksum do
-          :ok
-        else
-          {:error, %ChecksumError{checksum: checksum}}
-        end
-
-      [_] ->
-        {:error, %ParseError{message: "checksum delimiter '!' not found"}}
-    end
   end
 end

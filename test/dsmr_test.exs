@@ -335,13 +335,13 @@ defmodule DSMRTest do
     end
 
     test "with invalid telegram while lexing" do
-      {:error, %DSMR.ParseError{message: message}} = DSMR.parse("invalid$foo")
+      {:error, %DSMR.ParseError{message: message}} = DSMR.parse("invalid$foo", checksum: false)
       assert message =~ "unexpected character while parsing"
       assert message =~ "line 1"
     end
 
     test "with invalid telegram while parsing" do
-      {:error, %DSMR.ParseError{message: message}} = DSMR.parse("invalid!foo")
+      {:error, %DSMR.ParseError{message: message}} = DSMR.parse("invalid!foo", checksum: false)
       assert message =~ "unexpected token while parsing"
       assert message =~ "line 1"
     end
@@ -658,7 +658,7 @@ defmodule DSMRTest do
     test "with invalid telegram" do
       error =
         assert_raise DSMR.ParseError, fn ->
-          DSMR.parse!("invalid")
+          DSMR.parse!("invalid", checksum: false)
         end
 
       assert error.message =~ "unexpected token while parsing"
@@ -666,34 +666,34 @@ defmodule DSMRTest do
     end
 
     test "with power failure log count mismatch" do
-      telegram =
-        Enum.join(
-          [
-            "/KFM5KAIFA-METER\r\n",
-            "\r\n",
-            "0-0:1.0.0(170102192002W)\r\n",
-            # Claim 5 events but only provide 3 (6 data items = 3 pairs)
-            "1-0:99.97.0(5)(0-0:96.7.19)(000104180320W)(0000237126*s)(000101000001W)(2147583646*s)(000102000003W)(2317482647*s)\r\n",
-            "!AA23\r\n"
-          ],
-          ""
-        )
+       telegram =
+         Enum.join(
+           [
+             "/KFM5KAIFA-METER\r\n",
+             "\r\n",
+             "0-0:1.0.0(170102192002W)\r\n",
+             # Claim 5 events but only provide 3 (6 data items = 3 pairs)
+             "1-0:99.97.0(5)(0-0:96.7.19)(000104180320W)(0000237126*s)(000101000001W)(2147583646*s)(000102000003W)(2317482647*s)\r\n",
+             "!AA23\r\n"
+           ],
+           ""
+         )
 
-      error =
-        assert_raise DSMR.ParseError, fn ->
-          DSMR.parse!(telegram)
-        end
+       error =
+         assert_raise DSMR.ParseError, fn ->
+           DSMR.parse!(telegram, checksum: false)
+         end
 
-      assert error.message ==
-               "An unexpected error occurred while parsing: Power failures log count mismatch: expected 5 events, but got 3"
-    end
+       assert error.message ==
+                "An unexpected error occurred while parsing: Power failures log count mismatch: expected 5 events, but got 3"
+     end
   end
 
   describe "truncated and incomplete telegrams" do
     test "telegram missing final CRLF after checksum is still parsed" do
       telegram = truncated_telegram(:no_final_crlf)
       # Parser is lenient about trailing CRLF
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "telegram with header but empty checksum" do
@@ -704,23 +704,23 @@ defmodule DSMRTest do
 
     test "telegram cut off mid-line" do
       telegram = truncated_telegram(:mid_line)
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "telegram cut off mid-OBIS code" do
       telegram = truncated_telegram(:mid_obis)
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "telegram cut off mid-measurement value" do
       telegram = truncated_telegram(:mid_measurement)
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "telegram with body but no checksum delimiter" do
       telegram = truncated_telegram(:no_delimiter)
       # Parser expects checksum delimiter
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "partial M-Bus device (only device_type, no reading)" do
@@ -750,7 +750,7 @@ defmodule DSMRTest do
 
       error =
         assert_raise DSMR.ParseError, fn ->
-          DSMR.parse!(telegram)
+          DSMR.parse!(telegram, checksum: false)
         end
 
       assert error.message =~ "Power failures log count mismatch"
@@ -760,17 +760,17 @@ defmodule DSMRTest do
   describe "malformed OBIS codes" do
     test "OBIS with alphabetic characters is treated as unknown" do
       telegram = "/TEST\r\n\r\nA-0:1.8.1(123.45*kWh)\r\n!AA23\r\n"
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "OBIS with missing segments" do
       telegram = "/TEST\r\n\r\n1-0:1.8(123.45*kWh)\r\n!AA23\r\n"
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "OBIS with extra segments" do
       telegram = "/TEST\r\n\r\n1-0-2:1.8.1.0(123.45*kWh)\r\n!AA23\r\n"
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "OBIS with very large numbers" do
@@ -783,7 +783,7 @@ defmodule DSMRTest do
   describe "invalid measurement values" do
     test "measurement with invalid float (multiple decimals)" do
       telegram = invalid_measurement_telegram(:multiple_decimals)
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "measurement without unit" do
@@ -794,12 +794,12 @@ defmodule DSMRTest do
 
     test "measurement without asterisk" do
       telegram = invalid_measurement_telegram(:no_asterisk)
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "measurement with empty value" do
       telegram = invalid_measurement_telegram(:empty_value)
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "measurement with very large number" do
@@ -935,7 +935,7 @@ defmodule DSMRTest do
     test "data lines appearing after checksum" do
       telegram = "/TEST\r\n\r\n!0039\r\n1-3:0.2.8(50)\r\n"
       # Parser should handle this - checksum comes early
-      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
   end
 
