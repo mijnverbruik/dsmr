@@ -66,7 +66,8 @@ defmodule DSMR do
     case String.split(string, "!", parts: 2) do
       [raw, rest] ->
         # Extract expected checksum from rest (the checksum is after the last "!" in the string)
-        expected_checksum = rest |> String.trim() |> String.split("!") |> List.last() |> String.trim()
+        expected_checksum =
+          rest |> String.trim() |> String.split("!") |> List.last() |> String.trim()
 
         # Empty checksum is valid for DSMR 2.2
         if expected_checksum === "" do
