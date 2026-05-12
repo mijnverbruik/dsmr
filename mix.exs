@@ -8,7 +8,7 @@ defmodule DSMR.MixProject do
     [
       app: :dsmr,
       version: @version,
-      elixir: "~> 1.14",
+      elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       compilers: [:leex, :yecc] ++ Mix.compilers(),

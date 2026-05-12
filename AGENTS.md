@@ -74,7 +74,7 @@ Available in `TelegramFixtures` (`test/support/telegram_fixtures.ex`):
 
 ## Code Style & Conventions
 
-- **Language**: Elixir ~1.14
+- **Language**: Elixir ~1.15
 - **Format**: `mix format` (standard Elixir formatter)
 - **Type checking**: Dialyzer (`mix dialyzer`)
 - **Naming**: snake_case for functions/variables, PascalCase for modules; booleans suffixed with `?`
