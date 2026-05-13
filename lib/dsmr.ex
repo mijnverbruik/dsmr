@@ -4,10 +4,14 @@ defmodule DSMR do
              |> String.split("<!-- MDOC !-->")
              |> Enum.fetch!(1)
 
-  @type parse_opt :: {:checksum, boolean} | {:floats, :native | :decimals}
+  @type parse_opt() :: {:checksum, boolean()} | {:floats, :native | :decimals}
 
   defmodule ChecksumError do
-    @type t :: %__MODULE__{checksum: binary()}
+    @moduledoc """
+    Raised or returned when a telegram checksum does not match.
+    """
+
+    @type t() :: %__MODULE__{checksum: binary()}
 
     defexception [:checksum]
 
@@ -16,7 +20,11 @@ defmodule DSMR do
   end
 
   defmodule ParseError do
-    @type t :: %__MODULE__{message: binary()}
+    @moduledoc """
+    Raised or returned when a telegram cannot be parsed.
+    """
+
+    @type t() :: %__MODULE__{message: binary()}
 
     defexception [:message]
   end
@@ -24,12 +32,11 @@ defmodule DSMR do
   alias DSMR.{Parser, Telegram}
 
   @doc """
-  Parses telegram data from a string and returns a `DSMR.Telegram` struct.
+  Parses a telegram and returns a `DSMR.Telegram` struct.
 
-  Similar to `parse/2` except it will unwrap the error tuple and raise
-  in case of errors.
+  This is the raising variant of `parse/2`.
   """
-  @spec parse!(binary, [parse_opt]) :: Telegram.t() | no_return
+  @spec parse!(binary(), [parse_opt()]) :: Telegram.t() | no_return()
   def parse!(string, options \\ []) do
     case parse(string, options) do
       {:ok, telegram} -> telegram
@@ -38,18 +45,22 @@ defmodule DSMR do
   end
 
   @doc """
-  Parses telegram data from a string and returns a `DSMR.Telegram` struct.
+  Parses a telegram.
+
+  Returns `{:ok, telegram}` on success. Invalid input returns
+  `{:error, %DSMR.ParseError{}}`; checksum mismatches return
+  `{:error, %DSMR.ChecksumError{}}`.
 
   ## Options
 
-    * `:checksum` - when true, the checksum will be validated, defaults to `true`.
+    * `:checksum` - validates the CRC16 checksum when `true`. Defaults to `true`.
 
-    * `:floats` - controls how floats are parsed. Possible values are:
+    * `:floats` - controls how decimal numbers are parsed:
 
-      * `:native` (default) - Native conversion from binary to float using `:erlang.binary_to_float/1`,
-      * `:decimals` - uses `Decimal.new/1` to parse the binary into a Decimal struct with arbitrary precision.
+      * `:native` - returns native floats. This is the default.
+      * `:decimals` - returns `%Decimal{}` structs for decimal values.
   """
-  @spec parse(binary, [parse_opt]) ::
+  @spec parse(binary(), [parse_opt()]) ::
           {:ok, Telegram.t()} | {:error, ParseError.t() | ChecksumError.t()}
   def parse(string, options \\ []) when is_binary(string) and is_list(options) do
     validate_checksum = Keyword.get(options, :checksum, true)

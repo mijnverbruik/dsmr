@@ -1,4 +1,15 @@
 defmodule DSMR.Telegram do
+  @moduledoc """
+  A parsed DSMR telegram.
+
+  A telegram contains the values broadcast by a smart meter at a point in time.
+  Different DSMR versions expose different fields, so most fields are optional
+  and remain `nil` when the input does not contain the corresponding OBIS code.
+
+  Unknown OBIS codes are preserved in `unknown_fields` instead of being rejected.
+  This keeps parsing tolerant of regional extensions and meter-specific fields.
+  """
+
   @enforce_keys [:header, :checksum]
   defstruct [
     :header,
@@ -46,54 +57,62 @@ defmodule DSMR.Telegram do
           {non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer(),
            non_neg_integer()}
 
+  @type maybe(type) :: type | nil
+
   @type value_t() ::
           String.t()
+          | integer()
+          | float()
+          | Decimal.t()
           | obis_t()
           | DSMR.Timestamp.t()
           | DSMR.Measurement.t()
+          | nil
 
   @type obj_t() :: {obis_t(), value_t() | [value_t()]}
 
   @type unknown_field_t() :: {obis_t(), value_t() | [value_t()]}
 
+  @type power_failure_event_t() :: [DSMR.Timestamp.t() | DSMR.Measurement.t()]
+
   @type t() :: %__MODULE__{
           header: String.t(),
           checksum: String.t(),
-          version: String.t(),
-          measured_at: DSMR.Timestamp.t(),
-          equipment_id: String.t(),
-          electricity_delivered_1: DSMR.Measurement.t(),
-          electricity_delivered_2: DSMR.Measurement.t(),
-          electricity_returned_1: DSMR.Measurement.t(),
-          electricity_returned_2: DSMR.Measurement.t(),
-          electricity_tariff_indicator: String.t(),
-          electricity_currently_delivered: DSMR.Measurement.t(),
-          electricity_currently_returned: DSMR.Measurement.t(),
-          power_failures_count: String.t(),
-          power_failures_long_count: String.t(),
-          power_failures_log: [{DSMR.Timestamp.t(), DSMR.Measurement.t()}],
-          voltage_sags_l1_count: String.t(),
-          voltage_sags_l2_count: String.t(),
-          voltage_sags_l3_count: String.t(),
-          voltage_swells_l1_count: String.t(),
-          voltage_swells_l2_count: String.t(),
-          voltage_swells_l3_count: String.t(),
-          actual_threshold_electricity: DSMR.Measurement.t(),
-          actual_switch_position: String.t(),
-          text_message: String.t(),
-          text_message_code: String.t(),
-          phase_power_current_l1: DSMR.Measurement.t(),
-          phase_power_current_l2: DSMR.Measurement.t(),
-          phase_power_current_l3: DSMR.Measurement.t(),
-          currently_delivered_l1: DSMR.Measurement.t(),
-          currently_delivered_l2: DSMR.Measurement.t(),
-          currently_delivered_l3: DSMR.Measurement.t(),
-          currently_returned_l1: DSMR.Measurement.t(),
-          currently_returned_l2: DSMR.Measurement.t(),
-          currently_returned_l3: DSMR.Measurement.t(),
-          voltage_l1: DSMR.Measurement.t(),
-          voltage_l2: DSMR.Measurement.t(),
-          voltage_l3: DSMR.Measurement.t(),
+          version: maybe(String.t()),
+          measured_at: maybe(DSMR.Timestamp.t()),
+          equipment_id: maybe(String.t()),
+          electricity_delivered_1: maybe(DSMR.Measurement.t()),
+          electricity_delivered_2: maybe(DSMR.Measurement.t()),
+          electricity_returned_1: maybe(DSMR.Measurement.t()),
+          electricity_returned_2: maybe(DSMR.Measurement.t()),
+          electricity_tariff_indicator: maybe(String.t()),
+          electricity_currently_delivered: maybe(DSMR.Measurement.t()),
+          electricity_currently_returned: maybe(DSMR.Measurement.t()),
+          power_failures_count: maybe(String.t()),
+          power_failures_long_count: maybe(String.t()),
+          power_failures_log: maybe([power_failure_event_t()]),
+          voltage_sags_l1_count: maybe(String.t()),
+          voltage_sags_l2_count: maybe(String.t()),
+          voltage_sags_l3_count: maybe(String.t()),
+          voltage_swells_l1_count: maybe(String.t()),
+          voltage_swells_l2_count: maybe(String.t()),
+          voltage_swells_l3_count: maybe(String.t()),
+          actual_threshold_electricity: maybe(DSMR.Measurement.t()),
+          actual_switch_position: maybe(String.t()),
+          text_message: maybe(String.t()),
+          text_message_code: maybe(String.t()),
+          phase_power_current_l1: maybe(DSMR.Measurement.t()),
+          phase_power_current_l2: maybe(DSMR.Measurement.t()),
+          phase_power_current_l3: maybe(DSMR.Measurement.t()),
+          currently_delivered_l1: maybe(DSMR.Measurement.t()),
+          currently_delivered_l2: maybe(DSMR.Measurement.t()),
+          currently_delivered_l3: maybe(DSMR.Measurement.t()),
+          currently_returned_l1: maybe(DSMR.Measurement.t()),
+          currently_returned_l2: maybe(DSMR.Measurement.t()),
+          currently_returned_l3: maybe(DSMR.Measurement.t()),
+          voltage_l1: maybe(DSMR.Measurement.t()),
+          voltage_l2: maybe(DSMR.Measurement.t()),
+          voltage_l3: maybe(DSMR.Measurement.t()),
           mbus_devices: [DSMR.MBusDevice.t()],
           unknown_fields: [unknown_field_t()]
         }
@@ -102,6 +121,8 @@ defmodule DSMR.Telegram do
 
   @doc """
   Converts a Telegram struct back to its string representation.
+
+  Fields with `nil` or empty string values are omitted.
 
   ## Examples
 

@@ -36,11 +36,9 @@ By default, measurement values are returned as native floats. To use high-precis
 
 ## Supported DSMR Versions
 
-This library supports **DSMR 4.x and 5.x** protocols:
-- **DSMR 4.x** (version "42", "40") - Older Dutch meters
-- **DSMR 5.x** (version "50") - Current standard in Netherlands, Belgium, Luxembourg
-
-The parser automatically handles version differences. The `version` field in the telegram indicates which protocol version the meter uses.
+The parser supports DSMR 2.2, 3.0, 4.x, and 5.x telegrams. Version-specific
+fields are optional on `%DSMR.Telegram{}` and remain `nil` when they are not
+present in the input.
 
 ## Usage
 
@@ -87,20 +85,25 @@ telegram =
     "!6796\r\n"
   ])
 
-DSMR.parse(telegram)
-#=> {:ok, %DSMR.Telegram{header: "KFM5KAIFA-METER", version: "42", electricity_delivered_1: %Measurement{unit: "kWh",value: Decimal.new("1581.123")}, ...]}
+{:ok, parsed} = DSMR.parse(telegram)
+
+parsed.version
+#=> "42"
+
+parsed.electricity_delivered_1
+#=> %DSMR.Measurement{unit: "kWh", value: 1581.123}
 ```
 
 ### Parser Options
 
-`DSMR.parse/2` accepts an optional keyword list of options:
+`DSMR.parse/2` accepts these options:
 
 | Option | Values | Default | Description |
 |--------|--------|---------|-------------|
-| `:checksum` | `true` / `false` | `true` | When `false`, skips CRC16 checksum validation. Useful for testing or when processing telegrams from trusted sources. |
-| `:floats` | `:native` / `:decimals` | `:native` | Controls numeric precision:<br>• `:native` - Uses Erlang's native float conversion (faster, may have rounding)<br>• `:decimals` - Returns `Decimal` structs for arbitrary precision (requires the `decimal` package) |
+| `:checksum` | `true` / `false` | `true` | Validates the CRC16 checksum when enabled. |
+| `:floats` | `:native` / `:decimals` | `:native` | Returns decimal values as native floats or `%Decimal{}` structs. |
 
-**Examples:**
+Examples:
 
 ```elixir
 # Skip checksum validation
@@ -108,52 +111,48 @@ DSMR.parse(telegram, checksum: false)
 
 # Use Decimal for precise calculations
 DSMR.parse(telegram, floats: :decimals)
-
-# Combine options
-DSMR.parse(telegram, checksum: false, floats: :decimals)
 ```
 
 ### Available Telegram Fields
 
-The parsed `%DSMR.Telegram{}` struct contains the following fields:
+`DSMR.parse/2` returns a `%DSMR.Telegram{}` struct. Common fields include:
 
-**Header & Metadata**
+**Header and metadata**
 - `header` - Meter manufacturer and model
 - `checksum` - CRC16 checksum
-- `version` - DSMR protocol version ("42", "50", etc.)
-- `measured_at` - Timestamp of measurement
+- `version` - DSMR protocol version
+- `measured_at` - Telegram timestamp
 - `equipment_id` - Unique meter identifier
 
-**Electricity Measurements**
+**Electricity measurements**
 - `electricity_delivered_1` / `electricity_delivered_2` - Cumulative consumption (tariff 1/2)
 - `electricity_returned_1` / `electricity_returned_2` - Cumulative return to grid (tariff 1/2)
 - `electricity_tariff_indicator` - Current active tariff
 - `electricity_currently_delivered` / `electricity_currently_returned` - Instantaneous power
 
-**Per-Phase Measurements** (3-phase connections)
+**Per-phase measurements**
 - `currently_delivered_l1/l2/l3` - Power delivered per phase
 - `currently_returned_l1/l2/l3` - Power returned per phase
 - `voltage_l1/l2/l3` - Voltage per phase
 - `phase_power_current_l1/l2/l3` - Current per phase
 
-**Power Quality**
+**Power quality**
 - `power_failures_count` / `power_failures_long_count` - Failure counters
 - `power_failures_log` - Timestamped log of power failures
 - `voltage_sags_l1/l2/l3_count` / `voltage_swells_l1/l2/l3_count` - Quality events
 
-**M-Bus Devices** (gas, water, thermal meters)
-- `mbus_devices` - List of `%DSMR.MBusDevice{}` structs with gas/water/heat readings
+**M-Bus devices**
+- `mbus_devices` - Connected gas, water, heat, or other meters
 
-When the parser encounters OBIS codes that aren't in its mapping table, they're collected in `unknown_fields` as `{obis_tuple, value}` pairs instead of causing a crash. This allows the library to handle:
-- Proprietary meter-specific codes
-- Newer OBIS codes not yet supported
-- Regional variations in smart meter implementations
+Unknown OBIS codes are collected in `unknown_fields` as `{obis_tuple, value}`
+pairs. They are preserved instead of rejected.
 
 See [full documentation](https://hexdocs.pm/dsmr/DSMR.Telegram.html) for detailed field descriptions and types.
 
 ### Serialization
 
-You can convert a `Telegram` struct back to its string representation:
+Use `DSMR.Telegram.to_string/1` to convert a telegram struct back to its string
+representation. Fields with `nil` or empty string values are omitted.
 
 ```elixir
 telegram = %DSMR.Telegram{
@@ -173,62 +172,50 @@ DSMR.Telegram.to_string(telegram)
 
 ### Error Handling
 
-The parser returns `{:error, reason}` tuples for invalid data:
+The parser returns `{:error, reason}` tuples for invalid data.
 
 ```elixir
 DSMR.parse("invalid data")
-#=> {:error, {1, :dsmr_parser, ['syntax error before: ', []]}}
+#=> {:error, %DSMR.ParseError{message: "checksum delimiter '!' not found"}}
 
-DSMR.parse("/HEADER\r\n!FFFF\r\n")  # Bad checksum
-#=> {:error, :invalid_checksum}
+{:error, %DSMR.ChecksumError{}} = DSMR.parse("/HEADER\r\n!FFFF\r\n")
 ```
 
-**Common errors:**
-- `:invalid_checksum` - CRC16 validation failed
-- `{line, :dsmr_parser, message}` - Syntax error at specific line
-- `{line, :dsmr_lexer, message}` - Tokenization error
-
-**Troubleshooting:**
-- Ensure telegrams are complete (start with `/`, end with `!` + checksum)
-- Check for proper line endings (`\r\n`)
-- Verify the telegram hasn't been corrupted during transmission
-- Some meters send partial telegrams on connection - wait for the next complete one
+Use `DSMR.parse!/2` when invalid input should raise instead of returning an
+error tuple.
 
 ### Getting Real Telegram Data
 
-Smart meters typically expose data via:
-- **Serial port** (P1 port, usually RJ12 or RJ11 connector, 115200 baud)
-- **Network** (some meters or P1-to-WiFi adapters expose TCP sockets)
+Smart meters typically expose telegram data through a serial P1 port or through
+a P1-to-network adapter. This package only parses telegrams; collecting bytes
+from the meter is handled separately.
 
-This library only handles parsing - you'll need to handle data acquisition separately.
-
-**Example: Reading from a networked meter**
-
-See the included [Livebook example](examples/connect_to_dsmr_meter.livemd) for a complete GenServer implementation that:
+See the included [Livebook example](examples/connect_to_dsmr_meter.livemd) for
+a GenServer that:
 - Connects to a meter via TCP (common with WiFi P1 adapters)
 - Buffers incoming lines and assembles complete telegrams
-- Parses telegrams and visualizes real-time usage
+- Parses telegrams and visualizes usage
 
 For serial port connections, use libraries like [Circuits.UART](https://hex.pm/packages/circuits_uart).
 
 ## Internals
 
-This library uses a two-stage parsing architecture built on Erlang's **leex** (lexical analyzer) and **yecc** (parser generator):
+DSMR uses a two-stage parser built on Erlang's `leex` and `yecc`.
 
 ### Stage 1: Lexical Analysis (leex)
 
-The lexer (`src/dsmr_lexer.xrl`) tokenizes raw DSMR telegram data into structured tokens:
+The lexer (`src/dsmr_lexer.xrl`) turns telegram text into tokens:
 
-- **OBIS codes**: Pattern `1-0:1.8.1` → `{obis, Line, {[1,0,1,8,1], Channel}}`
-- **Timestamps**: Pattern `161113205757W` → `{timestamp, Line, {[16,11,13,20,57,57], "W"}}`
-- **Measurements**: Float/int values like `001581.123` → `{float, Line, "001581.123"}`
-- **Headers/Footers**: `/KFM5KAIFA-METER` and `!6796` → `{header, ...}` / `{checksum, ...}`
+- OBIS codes such as `1-0:1.8.1`
+- Timestamps such as `161113205757W`
+- Measurements such as `001581.123*kWh`
+- Headers and checksums
 
-The lexer also extracts the MBus channel number from OBIS codes (second position) for single-pass processing of multi-device telegrams.
+The lexer also extracts the M-Bus channel from OBIS codes.
 
 ### Stage 2: Parsing (yecc)
 
-The parser (`src/dsmr_parser.yrl`) uses grammar rules to transform tokens into the `DSMR.Telegram` struct:
+The parser (`src/dsmr_parser.yrl`) maps tokens into a `%DSMR.Telegram{}`:
 
 ```erlang
 object -> obis attributes : map_obis_to_field('$1', '$2').
@@ -236,14 +223,13 @@ attribute -> '(' value ')' : '$2'.
 value -> float '*' string : extract_measurement('$1', '$3').
 ```
 
-OBIS code mapping is centralized in the `DSMR.OBIS` Elixir module (`lib/dsmr/obis.ex`), which serves as the single source of truth for all field mappings. The parser calls this module at runtime to map OBIS codes like `[1,0,1,8,1]` to field names like `:electricity_delivered_1`.
+OBIS mappings live in `DSMR.OBIS`. The parser calls that module to map known
+codes to telegram fields.
 
 Special cases are handled directly in the parser:
-- **MBus devices**: Fields with wildcards (e.g., `0-*:24.1.0`) are grouped by channel
-- **Power failures log**: Nested structure with variable-length event lists
-- **Unknown OBIS codes**: Unrecognized codes are tagged and collected in `unknown_fields` rather than causing parse failures
-
-The final `DSMR.Parser` module coordinates both stages and constructs the final struct with proper type conversions (Decimal, NaiveDateTime, etc.).
+- M-Bus fields are grouped by channel.
+- Power failure logs are parsed as variable-length event lists.
+- Unknown OBIS codes are collected in `unknown_fields`.
 
 <!-- MDOC !-->
 

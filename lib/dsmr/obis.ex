@@ -1,9 +1,10 @@
 defmodule DSMR.OBIS do
   @moduledoc """
-  Centralized OBIS code mapping for DSMR telegrams.
+  OBIS code mappings used by the parser and serializer.
 
-  This module is the single source of truth for OBIS code mappings.
-  The parser (src/dsmr_parser.yrl) calls this module directly at runtime.
+  OBIS codes identify the values contained in a DSMR telegram. This module maps
+  known codes to `%DSMR.Telegram{}` fields and exposes the reverse mapping used
+  by `DSMR.Telegram.to_string/1`.
   """
 
   # Define mappings as ordered keyword list: field => OBIS string
