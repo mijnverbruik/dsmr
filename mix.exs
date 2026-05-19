@@ -30,7 +30,7 @@ defmodule DSMR.MixProject do
   defp deps do
     [
       {:benchee, "~> 1.3", only: :dev},
-      {:decimal, "~> 2.0", optional: true},
+      {:decimal, "~> 3.1", optional: true},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.30", only: :dev, runtime: false}
     ]
