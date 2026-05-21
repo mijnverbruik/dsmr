@@ -181,10 +181,14 @@ defmodule DSMR.Parser do
     :erlang.binary_to_float(value)
   end
 
-  defp extract_value({:float, value}, %{floats: :decimals} = _opts) do
-    # silence xref warning
-    decimal = Decimal
-    decimal.new(value)
+  if Code.ensure_loaded?(Decimal) do
+    defp extract_value({:float, value}, %{floats: :decimals} = _opts) do
+      Decimal.new(value)
+    end
+  else
+    defp extract_value({:float, _value}, %{floats: :decimals} = _opts) do
+      raise ArgumentError, "Decimal dependency is required when using floats: :decimals"
+    end
   end
 
   defp extract_value({:int, value}, _opts) do

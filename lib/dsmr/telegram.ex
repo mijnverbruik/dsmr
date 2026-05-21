@@ -253,9 +253,11 @@ defmodule DSMR.Telegram do
     |> pad_measurement()
   end
 
-  defp format_number(%Decimal{} = value) do
-    Decimal.to_string(value)
-    |> pad_measurement()
+  if Code.ensure_loaded?(Decimal) do
+    defp format_number(%Decimal{} = value) do
+      Decimal.to_string(value)
+      |> pad_measurement()
+    end
   end
 
   defp format_number(value) when is_integer(value) do
