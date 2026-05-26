@@ -27,7 +27,7 @@ Add `dsmr` to your list of dependencies in `mix.exs`:
 def deps do
   [
     {:dsmr, "~> 1.0"},
-    {:decimal, "~> 2.0"} # Optional: Required only if you want to use floats: :decimals option for arbitrary precision
+    {:decimal, "~> 3.1"} # Optional: Required only if you want to use floats: :decimals option for arbitrary precision
   ]
 end
 ```
