@@ -685,7 +685,7 @@ defmodule DSMRTest do
         end
 
       assert error.message ==
-               "An unexpected error occurred while parsing: Power failures log count mismatch: expected 5 events, but got 3"
+               "power failures log count mismatch: expected 5 events, got 3"
     end
   end
 
@@ -753,7 +753,7 @@ defmodule DSMRTest do
           DSMR.parse!(telegram, checksum: false)
         end
 
-      assert error.message =~ "Power failures log count mismatch"
+      assert error.message =~ "power failures log count mismatch"
     end
   end
 

@@ -104,6 +104,10 @@ defmodule DSMR do
       {:ok, _telegram} = result ->
         result
 
+      # errors already built by the parser pass through unchanged
+      {:error, %ParseError{}} = error ->
+        error
+
       # handle leex errors: {:error, {Line, Module, Reason}, Tokens}
       {:error, error, _} ->
         {:error, format_parse_error(error)}

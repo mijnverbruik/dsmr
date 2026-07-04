@@ -57,60 +57,69 @@ defmodule DSMR.Parser do
             _ -> false
           end)
 
-        # Process telegram fields
-        telegram =
-          telegram_fields
-          |> Enum.reduce(telegram, fn {:telegram_field, field, attrs}, acc ->
-            process_telegram_field(acc, field, attrs, opts)
-          end)
+        with {:ok, telegram} <- process_telegram_fields(telegram, telegram_fields, opts) do
+          # Process MBus device fields grouped by channel
+          mbus_devices =
+            mbus_fields
+            |> Enum.group_by(fn {:mbus_field, channel, _, _} -> channel end)
+            |> Enum.sort_by(fn {channel, _} -> channel end)
+            |> Enum.map(fn {channel, fields} ->
+              process_mbus_device(channel, fields, opts)
+            end)
 
-        # Process MBus device fields grouped by channel
-        mbus_devices =
-          mbus_fields
-          |> Enum.group_by(fn {:mbus_field, channel, _, _} -> channel end)
-          |> Enum.sort_by(fn {channel, _} -> channel end)
-          |> Enum.map(fn {channel, fields} ->
-            process_mbus_device(channel, fields, opts)
-          end)
+          # Process unknown OBIS codes
+          unknown =
+            unknown_fields
+            |> Enum.map(fn {:unknown_obis, code, attrs} ->
+              {List.to_tuple(code), extract_value(attrs, opts)}
+            end)
 
-        # Process unknown OBIS codes
-        unknown =
-          unknown_fields
-          |> Enum.map(fn {:unknown_obis, code, attrs} ->
-            {List.to_tuple(code), extract_value(attrs, opts)}
-          end)
-
-        {:ok, %{telegram | mbus_devices: mbus_devices, unknown_fields: unknown}}
+          {:ok, %{telegram | mbus_devices: mbus_devices, unknown_fields: unknown}}
+        end
 
       {:error, error_tuple} ->
         {:error, error_tuple}
     end
   end
 
+  defp process_telegram_fields(telegram, fields, opts) do
+    Enum.reduce_while(fields, {:ok, telegram}, fn {:telegram_field, field, attrs}, {:ok, acc} ->
+      case process_telegram_field(acc, field, attrs, opts) do
+        {:ok, telegram} -> {:cont, {:ok, telegram}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+  end
+
   # Process telegram field - now field name comes from parser
   defp process_telegram_field(telegram, :power_failures_log, value, opts) do
     # Special case: power failures log with nested structure
-    [{:string, count_str}, {:obis, {[0, 0, 96, 7, 19], _}} | events] = value
-    count = String.to_integer(count_str)
+    with [{:string, count_str}, {:obis, {[0, 0, 96, 7, 19], _}} | events] <- value,
+         {count, ""} <- Integer.parse(count_str) do
+      # Each event consists of 2 elements (timestamp and duration)
+      actual_count = div(length(events), 2)
 
-    # Each event consists of 2 elements (timestamp and duration)
-    actual_count = div(length(events), 2)
+      if actual_count == count do
+        events =
+          events
+          |> Enum.map(&extract_value(&1, opts))
+          |> Enum.chunk_every(2)
 
-    if actual_count != count do
-      raise ArgumentError,
-            "Power failures log count mismatch: expected #{count} events, but got #{actual_count}"
+        {:ok, %{telegram | power_failures_log: events}}
+      else
+        {:error,
+         %DSMR.ParseError{
+           message:
+             "power failures log count mismatch: expected #{count} events, got #{actual_count}"
+         }}
+      end
+    else
+      _ -> {:error, %DSMR.ParseError{message: "malformed power failures log"}}
     end
-
-    events =
-      events
-      |> Enum.map(&extract_value(&1, opts))
-      |> Enum.chunk_every(2)
-
-    %{telegram | power_failures_log: events}
   end
 
   defp process_telegram_field(telegram, field, value, opts) do
-    Map.put(telegram, field, extract_value(value, opts))
+    {:ok, Map.put(telegram, field, extract_value(value, opts))}
   end
 
   # Process MBus device from grouped fields
