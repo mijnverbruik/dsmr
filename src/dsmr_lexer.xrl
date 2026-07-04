@@ -40,10 +40,11 @@ to_obis(TokenChars) ->
 
 %% A timestamp is exactly 12 digits (YYMMDDhhmmss) plus a DST marker; the
 %% rule matches longer digit runs so they can be rejected with a clean error.
-to_timestamp([Y1,Y2,Mo1,Mo2,D1,D2,H1,H2,Mi1,Mi2,S1,S2,DSTChar], TokenLine, 13) ->
-  Pairs = [[Y1,Y2], [Mo1,Mo2], [D1,D2], [H1,H2], [Mi1,Mi2], [S1,S2]],
-  IntValues = lists:map(fun list_to_integer/1, Pairs),
-  {token, {timestamp, TokenLine, {IntValues, <<DSTChar>>}}};
+%% Decoding the digits is left to the Elixir parser (DSMR.Parser).
+to_timestamp(TokenChars, TokenLine, 13) ->
+  Digits = lists:sublist(TokenChars, 12),
+  DSTChar = lists:last(TokenChars),
+  {token, {timestamp, TokenLine, {list_to_binary(Digits), <<DSTChar>>}}};
 to_timestamp(_TokenChars, _TokenLine, TokenLen) ->
   {error, "timestamp must be 12 digits followed by W or S, got "
           ++ integer_to_list(TokenLen - 1) ++ " digits"}.

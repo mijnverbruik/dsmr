@@ -161,18 +161,19 @@ defmodule DSMR.Parser do
     %Measurement{unit: unit, value: processed_value}
   end
 
-  defp extract_value({:timestamp, {value, dst}}, _opts) do
-    [year, month, day, hour, minute, second] = value
+  defp extract_value({:timestamp, {value, dst}}, _opts) when is_binary(value) do
+    <<year::binary-2, month::binary-2, day::binary-2, hour::binary-2, minute::binary-2,
+      second::binary-2>> = value
+
+    [year, month, day, hour, minute, second] =
+      Enum.map([year, month, day, hour, minute, second], &:erlang.binary_to_integer/1)
+
     timestamp = NaiveDateTime.new!(2000 + year, month, day, hour, minute, second)
     %Timestamp{value: timestamp, dst: dst}
   end
 
   defp extract_value({:timestamp, value}, opts) when is_binary(value) do
-    <<year::binary-2, month::binary-2, day::binary-2, hour::binary-2, minute::binary-2,
-      second::binary-2>> = value
-
-    parts = Enum.map([year, month, day, hour, minute, second], &:erlang.binary_to_integer/1)
-    extract_value({:timestamp, {parts, nil}}, opts)
+    extract_value({:timestamp, {value, nil}}, opts)
   end
 
   defp extract_value({:float, value}, %{floats: :native} = _opts) do
