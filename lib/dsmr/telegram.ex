@@ -90,20 +90,16 @@ defmodule DSMR.Telegram do
   """
   @spec to_string(t()) :: String.t()
   def to_string(%__MODULE__{} = telegram) do
-    lines = [
-      "/#{telegram.header}",
-      "",
-      telegram_fields_to_lines(telegram),
-      mbus_devices_to_lines(telegram.mbus_devices),
-      unknown_fields_to_lines(telegram.unknown_fields),
-      "!#{telegram.checksum}"
-    ]
+    lines =
+      [["/", telegram.header], ""] ++
+        telegram_fields_to_lines(telegram) ++
+        mbus_devices_to_lines(telegram.mbus_devices) ++
+        unknown_fields_to_lines(telegram.unknown_fields) ++
+        [["!", telegram.checksum]]
 
     lines
-    |> List.flatten()
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join("\r\n")
-    |> Kernel.<>("\r\n")
+    |> Enum.map(&[&1, "\r\n"])
+    |> IO.iodata_to_binary()
   end
 
   defp telegram_fields_to_lines(telegram) do
@@ -123,41 +119,27 @@ defmodule DSMR.Telegram do
   defp field_to_line(_field, nil), do: nil
   defp field_to_line(_field, ""), do: nil
 
-  defp field_to_line(field, %Measurement{} = measurement) do
+  defp field_to_line(field, value) do
     case OBIS.get_obis(field) do
       nil -> nil
-      obis -> "#{obis}(#{format_measurement(measurement)})"
+      obis -> [obis, "(", format_value(value), ")"]
     end
   end
 
-  defp field_to_line(field, %Timestamp{} = timestamp) do
-    case OBIS.get_obis(field) do
-      nil -> nil
-      obis -> "#{obis}(#{format_timestamp(timestamp)})"
-    end
-  end
-
-  defp field_to_line(field, value) when is_binary(value) do
-    case OBIS.get_obis(field) do
-      nil -> nil
-      obis -> "#{obis}(#{value})"
-    end
-  end
+  defp format_value(%Measurement{} = measurement), do: format_measurement(measurement)
+  defp format_value(%Timestamp{} = timestamp), do: format_timestamp(timestamp)
+  defp format_value(value) when is_binary(value), do: value
 
   defp power_failures_log_to_line(nil), do: nil
   defp power_failures_log_to_line([]), do: "1-0:99.97.0(0)(0-0:96.7.19)"
 
   defp power_failures_log_to_line(log) when is_list(log) do
-    count = length(log)
-
     events =
-      log
-      |> Enum.map(fn [timestamp, duration] ->
-        "(#{format_timestamp(timestamp)})(#{format_measurement(duration)})"
+      Enum.map(log, fn [timestamp, duration] ->
+        ["(", format_timestamp(timestamp), ")(", format_measurement(duration), ")"]
       end)
-      |> Enum.join()
 
-    "1-0:99.97.0(#{count})(0-0:96.7.19)#{events}"
+    ["1-0:99.97.0(", Integer.to_string(length(log)), ")(0-0:96.7.19)" | events]
   end
 
   defp mbus_devices_to_lines([]), do: []
@@ -168,19 +150,19 @@ defmodule DSMR.Telegram do
 
   defp mbus_device_to_lines(%MBusDevice{} = device) do
     [
-      mbus_field_to_line(device.channel, "0-#{device.channel}:24.1.0", device.device_type),
-      mbus_field_to_line(device.channel, "0-#{device.channel}:96.1.0", device.equipment_id),
+      mbus_field_to_line("0-#{device.channel}:24.1.0", device.device_type),
+      mbus_field_to_line("0-#{device.channel}:96.1.0", device.equipment_id),
       mbus_reading_to_line(device),
-      mbus_field_to_line(device.channel, "0-#{device.channel}:24.4.0", device.valve_position)
+      mbus_field_to_line("0-#{device.channel}:24.4.0", device.valve_position)
     ]
     |> Enum.reject(&is_nil/1)
   end
 
-  defp mbus_field_to_line(_channel, _obis, nil), do: nil
-  defp mbus_field_to_line(_channel, _obis, ""), do: nil
+  defp mbus_field_to_line(_obis, nil), do: nil
+  defp mbus_field_to_line(_obis, ""), do: nil
 
-  defp mbus_field_to_line(_channel, obis, value) when is_binary(value) do
-    "#{obis}(#{value})"
+  defp mbus_field_to_line(obis, value) when is_binary(value) do
+    [obis, "(", value, ")"]
   end
 
   defp mbus_reading_to_line(%MBusDevice{last_reading_measured_at: nil}), do: nil
@@ -191,25 +173,33 @@ defmodule DSMR.Telegram do
          last_reading_measured_at: timestamp,
          last_reading_value: measurement
        }) do
-    "0-#{channel}:24.2.1(#{format_timestamp(timestamp)})(#{format_measurement(measurement)})"
+    [
+      "0-#{channel}:24.2.1(",
+      format_timestamp(timestamp),
+      ")(",
+      format_measurement(measurement),
+      ")"
+    ]
   end
 
   # Measurements parsed from a telegram carry the exact original text in
   # `raw`; using it keeps serialization byte-for-byte lossless. Hand-built
   # measurements fall back to formatting the numeric value.
   defp format_measurement(%Measurement{raw: raw, unit: unit}) when is_binary(raw) do
-    "#{raw}*#{unit}"
+    [raw, "*", unit]
   end
 
   defp format_measurement(%Measurement{value: value, unit: unit}) do
-    formatted_value = format_number(value)
-    "#{formatted_value}*#{unit}"
+    [format_number(value), "*", unit]
   end
 
   defp format_number(value) when is_float(value) do
-    # Format with up to 3 decimal places, removing trailing zeros
+    # Format with up to 3 decimal places, removing trailing zeros (and a bare
+    # trailing dot). The dot printed by decimals: 3 stops the zero-trimming
+    # from ever reaching the integer part.
     :erlang.float_to_binary(value, decimals: 3)
-    |> String.replace(~r/\.?0+$/, "")
+    |> String.trim_trailing("0")
+    |> String.trim_trailing(".")
     |> pad_measurement()
   end
 
@@ -237,17 +227,20 @@ defmodule DSMR.Telegram do
   end
 
   defp format_timestamp(%Timestamp{value: datetime, dst: dst}) do
-    year = datetime.year - 2000
-    month = datetime.month
-    day = datetime.day
-    hour = datetime.hour
-    minute = datetime.minute
-    second = datetime.second
+    digits =
+      Enum.map(
+        [
+          datetime.year - 2000,
+          datetime.month,
+          datetime.day,
+          datetime.hour,
+          datetime.minute,
+          datetime.second
+        ],
+        &pad/1
+      )
 
-    timestamp_str =
-      "#{pad(year)}#{pad(month)}#{pad(day)}#{pad(hour)}#{pad(minute)}#{pad(second)}"
-
-    if dst, do: "#{timestamp_str}#{dst}", else: timestamp_str
+    if dst, do: [digits, dst], else: digits
   end
 
   defp pad(value) do
@@ -258,9 +251,7 @@ defmodule DSMR.Telegram do
 
   defp unknown_fields_to_lines(fields) do
     Enum.map(fields, fn {code, values} ->
-      obis = format_obis(code)
-      attrs = format_unknown_values(values)
-      "#{obis}#{attrs}"
+      [format_obis(code), format_unknown_values(values)]
     end)
   end
 
@@ -269,9 +260,7 @@ defmodule DSMR.Telegram do
   end
 
   defp format_unknown_values(values) when is_list(values) do
-    values
-    |> Enum.map(&format_unknown_value/1)
-    |> Enum.join()
+    Enum.map(values, &format_unknown_value/1)
   end
 
   defp format_unknown_values(value) do
@@ -279,23 +268,23 @@ defmodule DSMR.Telegram do
   end
 
   defp format_unknown_value(%Measurement{} = measurement) do
-    "(#{format_measurement(measurement)})"
+    ["(", format_measurement(measurement), ")"]
   end
 
   defp format_unknown_value(%Timestamp{} = timestamp) do
-    "(#{format_timestamp(timestamp)})"
+    ["(", format_timestamp(timestamp), ")"]
   end
 
-  defp format_unknown_value({:obis, {a, b, c, d, e}}) do
-    "(#{a}-#{b}:#{c}.#{d}.#{e})"
+  defp format_unknown_value({:obis, code}) do
+    ["(", format_obis(code), ")"]
   end
 
   defp format_unknown_value(value) when is_binary(value) do
-    "(#{value})"
+    ["(", value, ")"]
   end
 
   defp format_unknown_value(value) when is_number(value) do
-    "(#{value})"
+    ["(", Kernel.to_string(value), ")"]
   end
 
   defp format_unknown_value(nil) do
