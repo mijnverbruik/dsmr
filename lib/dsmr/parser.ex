@@ -57,16 +57,14 @@ defmodule DSMR.Parser do
             _ -> false
           end)
 
-        with {:ok, telegram} <- process_telegram_fields(telegram, telegram_fields, opts) do
-          # Process MBus device fields grouped by channel
-          mbus_devices =
-            mbus_fields
-            |> Enum.group_by(fn {:mbus_field, channel, _, _} -> channel end)
-            |> Enum.sort_by(fn {channel, _} -> channel end)
-            |> Enum.map(fn {channel, fields} ->
-              process_mbus_device(channel, fields, opts)
-            end)
+        # MBus device fields are grouped by channel
+        grouped_mbus_fields =
+          mbus_fields
+          |> Enum.group_by(fn {:mbus_field, channel, _, _} -> channel end)
+          |> Enum.sort_by(fn {channel, _} -> channel end)
 
+        with {:ok, telegram} <- process_telegram_fields(telegram, telegram_fields, opts),
+             {:ok, mbus_devices} <- process_mbus_devices(grouped_mbus_fields, opts) do
           # Process unknown OBIS codes
           unknown =
             unknown_fields
@@ -122,44 +120,80 @@ defmodule DSMR.Parser do
     {:ok, Map.put(telegram, field, extract_value(value, opts))}
   end
 
+  defp process_mbus_devices(grouped_fields, opts) do
+    grouped_fields
+    |> Enum.reduce_while({:ok, []}, fn {channel, fields}, {:ok, acc} ->
+      case process_mbus_device(channel, fields, opts) do
+        {:ok, device} -> {:cont, {:ok, [device | acc]}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, devices} -> {:ok, Enum.reverse(devices)}
+      {:error, _} = error -> error
+    end
+  end
+
   # Process MBus device from grouped fields
   defp process_mbus_device(channel, fields, opts) do
-    Enum.reduce(fields, %MBusDevice{channel: channel}, fn
-      {:mbus_field, _, :device_type, attrs}, mbus_device ->
-        %{mbus_device | device_type: extract_value(attrs, opts)}
+    Enum.reduce_while(fields, {:ok, %MBusDevice{channel: channel}}, fn field, {:ok, device} ->
+      case process_mbus_field(field, device, opts) do
+        {:ok, device} -> {:cont, {:ok, device}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+  end
 
-      {:mbus_field, _, :equipment_id, attrs}, mbus_device ->
-        %{mbus_device | equipment_id: extract_value(attrs, opts)}
+  defp process_mbus_field({:mbus_field, _, :device_type, attrs}, device, opts) do
+    {:ok, %{device | device_type: extract_value(attrs, opts)}}
+  end
 
-      {:mbus_field, _, :last_reading, attrs}, mbus_device ->
-        [measured_at, value] = attrs
+  defp process_mbus_field({:mbus_field, _, :equipment_id, attrs}, device, opts) do
+    {:ok, %{device | equipment_id: extract_value(attrs, opts)}}
+  end
 
-        %{
-          mbus_device
-          | last_reading_measured_at: extract_value(measured_at, opts),
-            last_reading_value: extract_value(value, opts)
-        }
+  defp process_mbus_field({:mbus_field, channel, :last_reading, attrs}, device, opts) do
+    case attrs do
+      [measured_at, value] ->
+        {:ok,
+         %{
+           device
+           | last_reading_measured_at: extract_value(measured_at, opts),
+             last_reading_value: extract_value(value, opts)
+         }}
 
-      {:mbus_field, _, :valve_position, attrs}, mbus_device ->
-        %{mbus_device | valve_position: extract_value(attrs, opts)}
+      _ ->
+        {:error,
+         %DSMR.ParseError{message: "malformed M-Bus reading (0-#{channel}:24.2.1)"}}
+    end
+  end
 
-      {:mbus_field, channel, :legacy_gas_reading, attrs}, mbus_device ->
-        [
-          {:string, timestamp},
-          _,
-          _,
-          _,
-          {:obis, {[0, ^channel, 24, 2, 1], _}},
-          {:string, unit},
-          {:string, value}
-        ] =
-          attrs
+  defp process_mbus_field({:mbus_field, _, :valve_position, attrs}, device, opts) do
+    {:ok, %{device | valve_position: extract_value(attrs, opts)}}
+  end
 
+  # Legacy (DSMR 2.x) gas readings spread the reading over several attributes:
+  # (timestamp)(status)(interval)(count)(reference obis)(unit)(value)
+  defp process_mbus_field({:mbus_field, channel, :legacy_gas_reading, attrs}, device, opts) do
+    case attrs do
+      [
+        {:string, timestamp},
+        _status,
+        _interval,
+        _count,
+        {:obis, {[0, ^channel, 24, 2, 1], _}},
+        {:string, unit},
+        {:string, value}
+      ] ->
         measurement = %Measurement{unit: unit, value: extract_value({:float, value}, opts)}
         timestamp = extract_value({:timestamp, timestamp}, opts)
 
-        %{mbus_device | last_reading_value: measurement, last_reading_measured_at: timestamp}
-    end)
+        {:ok, %{device | last_reading_value: measurement, last_reading_measured_at: timestamp}}
+
+      _ ->
+        {:error,
+         %DSMR.ParseError{message: "malformed legacy gas reading (0-#{channel}:24.3.0)"}}
+    end
   end
 
   defp extract_value([value], opts), do: extract_value(value, opts)
