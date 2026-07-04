@@ -76,9 +76,11 @@ defmodule DSMR.OBIS do
       "1-0:1.8.1"
   """
   @spec get_obis(atom()) :: String.t() | nil
-  def get_obis(field) do
-    Keyword.get(@telegram_field_mappings, field)
+  for {field, obis_str} <- @telegram_field_mappings do
+    def get_obis(unquote(field)), do: unquote(obis_str)
   end
+
+  def get_obis(_field), do: nil
 
   @doc """
   Returns the ordered list of telegram fields for serialization.
@@ -124,10 +126,10 @@ defmodule DSMR.OBIS do
   @doc """
   Returns all field-to-OBIS mappings as a map.
   """
+  @all_mappings @telegram_field_mappings
+                |> Enum.reject(fn {_field, obis_str} -> is_nil(obis_str) end)
+                |> Map.new()
+
   @spec all_mappings() :: %{atom() => String.t()}
-  def all_mappings do
-    @telegram_field_mappings
-    |> Enum.reject(fn {_field, obis_str} -> is_nil(obis_str) end)
-    |> Map.new()
-  end
+  def all_mappings, do: @all_mappings
 end
