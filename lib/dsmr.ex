@@ -111,10 +111,6 @@ defmodule DSMR do
       {:error, error} ->
         {:error, format_parse_error(error)}
     end
-  rescue
-    # Catch any unexpected exceptions during parsing
-    error ->
-      {:error, format_parse_error(error)}
   end
 
   defp format_parse_error({line, :dsmr_lexer, reason}) do
@@ -125,17 +121,5 @@ defmodule DSMR do
   defp format_parse_error({line, :dsmr_parser, message}) do
     detail = if is_list(message), do: IO.iodata_to_binary(message), else: inspect(message)
     %DSMR.ParseError{message: "unexpected token while parsing (line #{line}: #{detail})"}
-  end
-
-  defp format_parse_error(%{} = error) do
-    detail =
-      if is_exception(error) do
-        ": " <> Exception.message(error)
-      else
-        ""
-      end
-
-    message = "An unexpected error occurred while parsing" <> detail
-    %ParseError{message: message}
   end
 end

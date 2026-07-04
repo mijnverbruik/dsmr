@@ -21,6 +21,10 @@ defmodule DSMR.Parser do
          {:ok, _telegram} = result <- do_parse(tokens, opts) do
       result
     end
+  catch
+    # Input errors detected deep inside value extraction are thrown so they
+    # don't have to be threaded through every extract_value/2 clause.
+    {:dsmr_parse_error, %DSMR.ParseError{} = error} -> {:error, error}
   end
 
   defp do_lex(string) when is_binary(string) do
@@ -205,14 +209,18 @@ defmodule DSMR.Parser do
   end
 
   defp extract_value({:timestamp, {value, dst}}, _opts) when is_binary(value) do
-    <<year::binary-2, month::binary-2, day::binary-2, hour::binary-2, minute::binary-2,
-      second::binary-2>> = value
-
-    [year, month, day, hour, minute, second] =
-      Enum.map([year, month, day, hour, minute, second], &:erlang.binary_to_integer/1)
-
-    timestamp = NaiveDateTime.new!(2000 + year, month, day, hour, minute, second)
-    %Timestamp{value: timestamp, dst: dst}
+    with <<year::binary-2, month::binary-2, day::binary-2, hour::binary-2, minute::binary-2,
+           second::binary-2>> <- value,
+         [{year, ""}, {month, ""}, {day, ""}, {hour, ""}, {minute, ""}, {second, ""}] <-
+           Enum.map([year, month, day, hour, minute, second], &Integer.parse/1),
+         {:ok, timestamp} <- NaiveDateTime.new(2000 + year, month, day, hour, minute, second) do
+      %Timestamp{value: timestamp, dst: dst}
+    else
+      _ ->
+        throw(
+          {:dsmr_parse_error, %DSMR.ParseError{message: "invalid timestamp #{value}#{dst}"}}
+        )
+    end
   end
 
   defp extract_value({:timestamp, value}, opts) when is_binary(value) do
