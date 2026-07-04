@@ -5,6 +5,19 @@ defmodule DSMR.CRC16 do
 
   @polynomial 0xA001
 
+  # Precompute the CRC for every possible byte value so that the per-byte
+  # work at runtime is a single table lookup instead of eight shift/xor steps.
+  @table (for byte <- 0..255 do
+            Enum.reduce(1..8, byte, fn _, crc ->
+              if (crc &&& 0x0001) > 0 do
+                bxor(crc >>> 1, @polynomial)
+              else
+                crc >>> 1
+              end
+            end)
+          end)
+         |> List.to_tuple()
+
   def checksum(input) do
     update(0x0000, input)
     |> Integer.to_string(16)
@@ -15,18 +28,7 @@ defmodule DSMR.CRC16 do
   defp update(crc, <<>>), do: crc
 
   defp update(crc, <<c, b::binary>>) do
-    update(do_update(crc, c, 0), b)
-  end
-
-  defp do_update(crc, _c, 8), do: crc
-
-  defp do_update(crc, c, read) do
-    crc = if read === 0, do: bxor(crc, c), else: crc
-
-    if (crc &&& 0x0001) > 0 do
-      do_update(bxor(crc >>> 1, @polynomial), c, read + 1)
-    else
-      do_update(crc >>> 1, c, read + 1)
-    end
+    crc = bxor(crc >>> 8, elem(@table, bxor(crc, c) &&& 0xFF))
+    update(crc, b)
   end
 end
