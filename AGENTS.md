@@ -25,6 +25,14 @@
 
 Don't waste time planning solutions to non-problems.
 
+## Changelog
+
+**Do NOT edit `CHANGELOG.md` manually.** It is generated automatically by the
+[release-please](https://github.com/googleapis/release-please) GitHub Action
+from Conventional Commit messages when a release is cut. Communicate changes
+through commit messages (`feat:`, `fix:`, breaking changes via `!`/footer),
+not by editing the changelog.
+
 ## Build & Test Commands
 
 - **Test all**: `mix test`
