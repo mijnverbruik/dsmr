@@ -168,13 +168,11 @@ defmodule DSMR.Parser do
   end
 
   defp extract_value({:timestamp, value}, opts) when is_binary(value) do
-    extract_value(
-      {:timestamp,
-       {value
-        |> String.split(~r/.{2}/, include_captures: true, trim: true)
-        |> Enum.map(&:erlang.binary_to_integer/1), nil}},
-      opts
-    )
+    <<year::binary-2, month::binary-2, day::binary-2, hour::binary-2, minute::binary-2,
+      second::binary-2>> = value
+
+    parts = Enum.map([year, month, day, hour, minute, second], &:erlang.binary_to_integer/1)
+    extract_value({:timestamp, {parts, nil}}, opts)
   end
 
   defp extract_value({:float, value}, %{floats: :native} = _opts) do
