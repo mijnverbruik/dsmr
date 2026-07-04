@@ -167,8 +167,7 @@ defmodule DSMR.Parser do
          }}
 
       _ ->
-        {:error,
-         %DSMR.ParseError{message: "malformed M-Bus reading (0-#{channel}:24.2.1)"}}
+        {:error, %DSMR.ParseError{message: "malformed M-Bus reading (0-#{channel}:24.2.1)"}}
     end
   end
 
@@ -189,14 +188,18 @@ defmodule DSMR.Parser do
         {:string, unit},
         {:string, value}
       ] ->
-        measurement = %Measurement{unit: unit, value: extract_value({:float, value}, opts)}
+        measurement = %Measurement{
+          unit: unit,
+          value: extract_value({:float, value}, opts),
+          raw: value
+        }
+
         timestamp = extract_value({:timestamp, timestamp}, opts)
 
         {:ok, %{device | last_reading_value: measurement, last_reading_measured_at: timestamp}}
 
       _ ->
-        {:error,
-         %DSMR.ParseError{message: "malformed legacy gas reading (0-#{channel}:24.3.0)"}}
+        {:error, %DSMR.ParseError{message: "malformed legacy gas reading (0-#{channel}:24.3.0)"}}
     end
   end
 
@@ -204,8 +207,9 @@ defmodule DSMR.Parser do
   defp extract_value(nil, _opts), do: nil
 
   defp extract_value({:measurement, {value, unit}}, opts) do
+    {_token, raw} = value
     processed_value = extract_value(value, opts)
-    %Measurement{unit: unit, value: processed_value}
+    %Measurement{unit: unit, value: processed_value, raw: raw}
   end
 
   defp extract_value({:timestamp, {value, dst}}, _opts) when is_binary(value) do
@@ -217,9 +221,7 @@ defmodule DSMR.Parser do
       %Timestamp{value: timestamp, dst: dst}
     else
       _ ->
-        throw(
-          {:dsmr_parse_error, %DSMR.ParseError{message: "invalid timestamp #{value}#{dst}"}}
-        )
+        throw({:dsmr_parse_error, %DSMR.ParseError{message: "invalid timestamp #{value}#{dst}"}})
     end
   end
 

@@ -9,10 +9,16 @@ defmodule DSMR.Measurement do
   """
 
   @enforce_keys [:value, :unit]
-  defstruct [:value, :unit]
+  defstruct [:value, :unit, raw: nil]
 
+  @typedoc """
+  `raw` holds the exact numeric text from the telegram (e.g. `"000123.456"`)
+  so that serialization can reproduce the original padding and precision.
+  It is `nil` for measurements constructed by hand.
+  """
   @type t() :: %__MODULE__{
           value: integer() | float() | Decimal.t(),
-          unit: String.t()
+          unit: String.t(),
+          raw: String.t() | nil
         }
 end

@@ -36,14 +36,42 @@ defmodule DSMRTest do
                   header: "ISk5\\2MT382-1004",
                   checksum: "",
                   equipment_id: "00000000000000",
-                  electricity_delivered_1: %Measurement{unit: "kWh", value: 1.001},
-                  electricity_delivered_2: %Measurement{unit: "kWh", value: 1.001},
-                  electricity_returned_1: %Measurement{unit: "kWh", value: 1.001},
-                  electricity_returned_2: %Measurement{unit: "kWh", value: 1.001},
+                  electricity_delivered_1: %Measurement{
+                    unit: "kWh",
+                    value: 1.001,
+                    raw: "00001.001"
+                  },
+                  electricity_delivered_2: %Measurement{
+                    unit: "kWh",
+                    value: 1.001,
+                    raw: "00001.001"
+                  },
+                  electricity_returned_1: %Measurement{
+                    unit: "kWh",
+                    value: 1.001,
+                    raw: "00001.001"
+                  },
+                  electricity_returned_2: %Measurement{
+                    unit: "kWh",
+                    value: 1.001,
+                    raw: "00001.001"
+                  },
                   electricity_tariff_indicator: "0001",
-                  electricity_currently_delivered: %Measurement{unit: "kW", value: 1.01},
-                  electricity_currently_returned: %Measurement{unit: "kW", value: 0.0},
-                  actual_threshold_electricity: %Measurement{unit: "kW", value: 999.0},
+                  electricity_currently_delivered: %Measurement{
+                    unit: "kW",
+                    value: 1.01,
+                    raw: "0001.01"
+                  },
+                  electricity_currently_returned: %Measurement{
+                    unit: "kW",
+                    value: 0.0,
+                    raw: "0000.00"
+                  },
+                  actual_threshold_electricity: %Measurement{
+                    unit: "kW",
+                    value: 999.0,
+                    raw: "0999.00"
+                  },
                   actual_switch_position: "1",
                   text_message_code: nil,
                   text_message: nil,
@@ -57,7 +85,11 @@ defmodule DSMRTest do
                         value: ~N[2016-11-07 19:00:00],
                         dst: nil
                       },
-                      last_reading_value: %Measurement{unit: "m3", value: 1.001}
+                      last_reading_value: %Measurement{
+                        unit: "m3",
+                        value: 1.001,
+                        raw: "00001.001"
+                      }
                     }
                   ]
                 }}
@@ -96,14 +128,38 @@ defmodule DSMRTest do
                   header: "ISk5\\2MT382-1000",
                   checksum: "",
                   equipment_id: "4B384547303034303436333935353037",
-                  electricity_delivered_1: %Measurement{unit: "kWh", value: 12345.678},
-                  electricity_delivered_2: %Measurement{unit: "kWh", value: 12345.678},
-                  electricity_returned_1: %Measurement{unit: "kWh", value: 12345.678},
-                  electricity_returned_2: %Measurement{unit: "kWh", value: 12345.678},
+                  electricity_delivered_1: %Measurement{
+                    unit: "kWh",
+                    value: 12345.678,
+                    raw: "12345.678"
+                  },
+                  electricity_delivered_2: %Measurement{
+                    unit: "kWh",
+                    value: 12345.678,
+                    raw: "12345.678"
+                  },
+                  electricity_returned_1: %Measurement{
+                    unit: "kWh",
+                    value: 12345.678,
+                    raw: "12345.678"
+                  },
+                  electricity_returned_2: %Measurement{
+                    unit: "kWh",
+                    value: 12345.678,
+                    raw: "12345.678"
+                  },
                   electricity_tariff_indicator: "0002",
-                  electricity_currently_delivered: %Measurement{unit: "kW", value: 1.19},
-                  electricity_currently_returned: %Measurement{unit: "kW", value: 0.0},
-                  actual_threshold_electricity: %Measurement{unit: "A", value: 16},
+                  electricity_currently_delivered: %Measurement{
+                    unit: "kW",
+                    value: 1.19,
+                    raw: "001.19"
+                  },
+                  electricity_currently_returned: %Measurement{
+                    unit: "kW",
+                    value: 0.0,
+                    raw: "000.00"
+                  },
+                  actual_threshold_electricity: %Measurement{unit: "A", value: 16, raw: "016"},
                   actual_switch_position: "1",
                   text_message_code: "303132333435363738",
                   text_message:
@@ -118,7 +174,11 @@ defmodule DSMRTest do
                         value: ~N[2009-02-12 16:00:00],
                         dst: nil
                       },
-                      last_reading_value: %Measurement{unit: "m3", value: 1.001}
+                      last_reading_value: %Measurement{
+                        unit: "m3",
+                        value: 1.001,
+                        raw: "00001.001"
+                      }
                     }
                   ]
                 }}
@@ -173,27 +233,51 @@ defmodule DSMRTest do
                   version: "42",
                   measured_at: %Timestamp{value: ~N[2016-11-13 20:57:57], dst: "W"},
                   equipment_id: "3960221976967177082151037881335713",
-                  electricity_delivered_1: %DSMR.Measurement{value: 1581.123, unit: "kWh"},
-                  electricity_delivered_2: %DSMR.Measurement{value: 1435.706, unit: "kWh"},
-                  electricity_returned_1: %DSMR.Measurement{value: 0.0, unit: "kWh"},
-                  electricity_returned_2: %DSMR.Measurement{value: 0.0, unit: "kWh"},
+                  electricity_delivered_1: %DSMR.Measurement{
+                    value: 1581.123,
+                    unit: "kWh",
+                    raw: "001581.123"
+                  },
+                  electricity_delivered_2: %DSMR.Measurement{
+                    value: 1435.706,
+                    unit: "kWh",
+                    raw: "001435.706"
+                  },
+                  electricity_returned_1: %DSMR.Measurement{
+                    value: 0.0,
+                    unit: "kWh",
+                    raw: "000000.000"
+                  },
+                  electricity_returned_2: %DSMR.Measurement{
+                    value: 0.0,
+                    unit: "kWh",
+                    raw: "000000.000"
+                  },
                   electricity_tariff_indicator: "0002",
-                  electricity_currently_delivered: %DSMR.Measurement{value: 2.027, unit: "kW"},
-                  electricity_currently_returned: %DSMR.Measurement{value: 0.0, unit: "kW"},
+                  electricity_currently_delivered: %DSMR.Measurement{
+                    value: 2.027,
+                    unit: "kW",
+                    raw: "02.027"
+                  },
+                  electricity_currently_returned: %DSMR.Measurement{
+                    value: 0.0,
+                    unit: "kW",
+                    raw: "00.000"
+                  },
                   power_failures_count: "00015",
                   power_failures_long_count: "00007",
                   power_failures_log: [
                     [
                       %DSMR.Timestamp{value: ~N[2000-01-04 18:03:20], dst: "W"},
-                      %DSMR.Measurement{value: 237_126, unit: "s"}
+                      %DSMR.Measurement{value: 237_126, unit: "s", raw: "0000237126"}
                     ],
                     [
                       %DSMR.Timestamp{value: ~N[2000-01-01 00:00:01], dst: "W"},
-                      %DSMR.Measurement{value: 2_147_583_646, unit: "s"}
+                      %DSMR.Measurement{value: 2_147_583_646, unit: "s", raw: "2147583646"}
                     ],
                     [
                       %DSMR.Timestamp{value: ~N[2000-01-02 00:00:03], dst: "W"},
-                      %DSMR.Measurement{value: 2_317_482_647, unit: "s"}
+                      %DSMR.Measurement{value: 2_317_482_647, unit: "s", raw: "2317482647"}
                     ]
                   ],
                   voltage_sags_l1_count: "00000",
@@ -204,15 +288,39 @@ defmodule DSMRTest do
                   voltage_swells_l3_count: "00000",
                   text_message_code: nil,
                   text_message: nil,
-                  phase_power_current_l1: %DSMR.Measurement{value: 0, unit: "A"},
-                  phase_power_current_l2: %DSMR.Measurement{value: 6, unit: "A"},
-                  phase_power_current_l3: %DSMR.Measurement{value: 2, unit: "A"},
-                  currently_delivered_l1: %DSMR.Measurement{value: 0.17, unit: "kW"},
-                  currently_delivered_l2: %DSMR.Measurement{value: 1.247, unit: "kW"},
-                  currently_delivered_l3: %DSMR.Measurement{value: 0.209, unit: "kW"},
-                  currently_returned_l1: %DSMR.Measurement{value: 0.0, unit: "kW"},
-                  currently_returned_l2: %DSMR.Measurement{value: 0.0, unit: "kW"},
-                  currently_returned_l3: %DSMR.Measurement{value: 0.0, unit: "kW"},
+                  phase_power_current_l1: %DSMR.Measurement{value: 0, unit: "A", raw: "000"},
+                  phase_power_current_l2: %DSMR.Measurement{value: 6, unit: "A", raw: "006"},
+                  phase_power_current_l3: %DSMR.Measurement{value: 2, unit: "A", raw: "002"},
+                  currently_delivered_l1: %DSMR.Measurement{
+                    value: 0.17,
+                    unit: "kW",
+                    raw: "00.170"
+                  },
+                  currently_delivered_l2: %DSMR.Measurement{
+                    value: 1.247,
+                    unit: "kW",
+                    raw: "01.247"
+                  },
+                  currently_delivered_l3: %DSMR.Measurement{
+                    value: 0.209,
+                    unit: "kW",
+                    raw: "00.209"
+                  },
+                  currently_returned_l1: %DSMR.Measurement{
+                    value: 0.0,
+                    unit: "kW",
+                    raw: "00.000"
+                  },
+                  currently_returned_l2: %DSMR.Measurement{
+                    value: 0.0,
+                    unit: "kW",
+                    raw: "00.000"
+                  },
+                  currently_returned_l3: %DSMR.Measurement{
+                    value: 0.0,
+                    unit: "kW",
+                    raw: "00.000"
+                  },
                   mbus_devices: [
                     %DSMR.MBusDevice{
                       channel: 1,
@@ -222,7 +330,11 @@ defmodule DSMRTest do
                         value: ~N[2016-11-29 20:00:00],
                         dst: "W"
                       },
-                      last_reading_value: %DSMR.Measurement{value: 981.443, unit: "m3"}
+                      last_reading_value: %DSMR.Measurement{
+                        value: 981.443,
+                        unit: "m3",
+                        raw: "00981.443"
+                      }
                     }
                   ],
                   checksum: "6796"
@@ -282,13 +394,37 @@ defmodule DSMRTest do
                   version: "50",
                   measured_at: %Timestamp{value: ~N[2017-01-02 19:20:02], dst: "W"},
                   equipment_id: "4B384547303034303436333935353037",
-                  electricity_delivered_1: %Measurement{unit: "kWh", value: 4.426},
-                  electricity_delivered_2: %Measurement{unit: "kWh", value: 2.399},
-                  electricity_returned_1: %Measurement{unit: "kWh", value: 2.444},
-                  electricity_returned_2: %Measurement{unit: "kWh", value: 0.0},
+                  electricity_delivered_1: %Measurement{
+                    unit: "kWh",
+                    value: 4.426,
+                    raw: "000004.426"
+                  },
+                  electricity_delivered_2: %Measurement{
+                    unit: "kWh",
+                    value: 2.399,
+                    raw: "000002.399"
+                  },
+                  electricity_returned_1: %Measurement{
+                    unit: "kWh",
+                    value: 2.444,
+                    raw: "000002.444"
+                  },
+                  electricity_returned_2: %Measurement{
+                    unit: "kWh",
+                    value: 0.0,
+                    raw: "000000.000"
+                  },
                   electricity_tariff_indicator: "0002",
-                  electricity_currently_delivered: %Measurement{unit: "kW", value: 0.244},
-                  electricity_currently_returned: %Measurement{unit: "kW", value: 0.0},
+                  electricity_currently_delivered: %Measurement{
+                    unit: "kW",
+                    value: 0.244,
+                    raw: "00.244"
+                  },
+                  electricity_currently_returned: %Measurement{
+                    unit: "kW",
+                    value: 0.0,
+                    raw: "00.000"
+                  },
                   power_failures_count: "00013",
                   power_failures_long_count: "00000",
                   power_failures_log: [],
@@ -298,18 +434,42 @@ defmodule DSMRTest do
                   voltage_swells_l1_count: "00000",
                   voltage_swells_l2_count: "00000",
                   voltage_swells_l3_count: "00000",
-                  phase_power_current_l1: %DSMR.Measurement{unit: "A", value: 0.48},
-                  phase_power_current_l2: %DSMR.Measurement{unit: "A", value: 0.44},
-                  phase_power_current_l3: %DSMR.Measurement{unit: "A", value: 0.86},
-                  currently_delivered_l1: %DSMR.Measurement{unit: "kW", value: 0.07},
-                  currently_delivered_l2: %DSMR.Measurement{unit: "kW", value: 0.032},
-                  currently_delivered_l3: %DSMR.Measurement{unit: "kW", value: 0.142},
-                  currently_returned_l1: %DSMR.Measurement{unit: "kW", value: 0.0},
-                  currently_returned_l2: %DSMR.Measurement{unit: "kW", value: 0.0},
-                  currently_returned_l3: %DSMR.Measurement{unit: "kW", value: 0.0},
-                  voltage_l1: %DSMR.Measurement{unit: "V", value: 230.0},
-                  voltage_l2: %DSMR.Measurement{unit: "V", value: 230.0},
-                  voltage_l3: %DSMR.Measurement{unit: "V", value: 229.0},
+                  phase_power_current_l1: %DSMR.Measurement{unit: "A", value: 0.48, raw: "0.48"},
+                  phase_power_current_l2: %DSMR.Measurement{unit: "A", value: 0.44, raw: "0.44"},
+                  phase_power_current_l3: %DSMR.Measurement{unit: "A", value: 0.86, raw: "0.86"},
+                  currently_delivered_l1: %DSMR.Measurement{
+                    unit: "kW",
+                    value: 0.07,
+                    raw: "00.070"
+                  },
+                  currently_delivered_l2: %DSMR.Measurement{
+                    unit: "kW",
+                    value: 0.032,
+                    raw: "00.032"
+                  },
+                  currently_delivered_l3: %DSMR.Measurement{
+                    unit: "kW",
+                    value: 0.142,
+                    raw: "00.142"
+                  },
+                  currently_returned_l1: %DSMR.Measurement{
+                    unit: "kW",
+                    value: 0.0,
+                    raw: "00.000"
+                  },
+                  currently_returned_l2: %DSMR.Measurement{
+                    unit: "kW",
+                    value: 0.0,
+                    raw: "00.000"
+                  },
+                  currently_returned_l3: %DSMR.Measurement{
+                    unit: "kW",
+                    value: 0.0,
+                    raw: "00.000"
+                  },
+                  voltage_l1: %DSMR.Measurement{unit: "V", value: 230.0, raw: "0230.0"},
+                  voltage_l2: %DSMR.Measurement{unit: "V", value: 230.0, raw: "0230.0"},
+                  voltage_l3: %DSMR.Measurement{unit: "V", value: 229.0, raw: "0229.0"},
                   mbus_devices: [
                     %DSMR.MBusDevice{
                       channel: 1,
@@ -319,7 +479,11 @@ defmodule DSMRTest do
                         value: ~N[2017-01-02 16:10:05],
                         dst: "W"
                       },
-                      last_reading_value: %DSMR.Measurement{value: 0.107, unit: "m3"}
+                      last_reading_value: %DSMR.Measurement{
+                        value: 0.107,
+                        unit: "m3",
+                        raw: "00000.107"
+                      }
                     },
                     %DSMR.MBusDevice{
                       channel: 2,
@@ -443,35 +607,43 @@ defmodule DSMRTest do
                   version: "42",
                   electricity_delivered_1: %Measurement{
                     unit: "kWh",
-                    value: Decimal.new("1581.123")
+                    value: Decimal.new("1581.123"),
+                    raw: "001581.123"
                   },
-                  electricity_returned_2: %Measurement{unit: "kWh", value: Decimal.new("0.000")},
+                  electricity_returned_2: %Measurement{
+                    unit: "kWh",
+                    value: Decimal.new("0.000"),
+                    raw: "000000.000"
+                  },
                   electricity_currently_delivered: %Measurement{
                     unit: "kW",
-                    value: Decimal.new("2.027")
+                    value: Decimal.new("2.027"),
+                    raw: "02.027"
                   },
                   electricity_currently_returned: %Measurement{
                     unit: "kW",
-                    value: Decimal.new("0.000")
+                    value: Decimal.new("0.000"),
+                    raw: "00.000"
                   },
                   power_failures_count: "00015",
                   power_failures_log: [
                     [
                       %DSMR.Timestamp{value: ~N[2000-01-04 18:03:20], dst: "W"},
-                      %DSMR.Measurement{value: 237_126, unit: "s"}
+                      %DSMR.Measurement{value: 237_126, unit: "s", raw: "0000237126"}
                     ],
                     [
                       %DSMR.Timestamp{value: ~N[2000-01-01 00:00:01], dst: "W"},
-                      %DSMR.Measurement{value: 2_147_583_646, unit: "s"}
+                      %DSMR.Measurement{value: 2_147_583_646, unit: "s", raw: "2147583646"}
                     ],
                     [
                       %DSMR.Timestamp{value: ~N[2000-01-02 00:00:03], dst: "W"},
-                      %DSMR.Measurement{value: 2_317_482_647, unit: "s"}
+                      %DSMR.Measurement{value: 2_317_482_647, unit: "s", raw: "2317482647"}
                     ]
                   ],
                   currently_returned_l3: %DSMR.Measurement{
                     value: Decimal.new("0.000"),
-                    unit: "kW"
+                    unit: "kW",
+                    raw: "00.000"
                   },
                   mbus_devices: [
                     %DSMR.MBusDevice{
@@ -482,7 +654,8 @@ defmodule DSMRTest do
                       },
                       last_reading_value: %DSMR.Measurement{
                         value: Decimal.new("981.443"),
-                        unit: "m3"
+                        unit: "m3",
+                        raw: "00981.443"
                       }
                     }
                   ],
@@ -518,7 +691,11 @@ defmodule DSMRTest do
                         value: ~N[2023-01-01 12:00:00],
                         dst: "W"
                       },
-                      last_reading_value: %DSMR.Measurement{value: 123.456, unit: "m3"},
+                      last_reading_value: %DSMR.Measurement{
+                        value: 123.456,
+                        unit: "m3",
+                        raw: "00123.456"
+                      },
                       valve_position: "2"
                     }
                   ]
@@ -551,7 +728,11 @@ defmodule DSMRTest do
                         value: ~N[2022-06-15 18:00:00],
                         dst: nil
                       },
-                      last_reading_value: %DSMR.Measurement{value: 456.789, unit: "m3"}
+                      last_reading_value: %DSMR.Measurement{
+                        value: 456.789,
+                        unit: "m3",
+                        raw: "00456.789"
+                      }
                     }
                   ]
                 }}
@@ -584,7 +765,11 @@ defmodule DSMRTest do
                         value: ~N[2021-12-01 09:00:00],
                         dst: nil
                       },
-                      last_reading_value: %DSMR.Measurement{value: 789.012, unit: "m3"},
+                      last_reading_value: %DSMR.Measurement{
+                        value: 789.012,
+                        unit: "m3",
+                        raw: "00789.012"
+                      },
                       valve_position: "3"
                     }
                   ]
@@ -628,7 +813,7 @@ defmodule DSMRTest do
                   checksum: "AD02",
                   unknown_fields: [
                     {{9, 9, 99, 99, 99}, "12345"},
-                    {{8, 8, 88, 88, 88}, %Measurement{unit: "kWh", value: 678.90}}
+                    {{8, 8, 88, 88, 88}, %Measurement{unit: "kWh", value: 678.90, raw: "678.90"}}
                   ]
                 }}
     end

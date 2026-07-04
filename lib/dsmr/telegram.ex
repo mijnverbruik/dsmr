@@ -241,6 +241,13 @@ defmodule DSMR.Telegram do
     "0-#{channel}:24.2.1(#{format_timestamp(timestamp)})(#{format_measurement(measurement)})"
   end
 
+  # Measurements parsed from a telegram carry the exact original text in
+  # `raw`; using it keeps serialization byte-for-byte lossless. Hand-built
+  # measurements fall back to formatting the numeric value.
+  defp format_measurement(%Measurement{raw: raw, unit: unit}) when is_binary(raw) do
+    "#{raw}*#{unit}"
+  end
+
   defp format_measurement(%Measurement{value: value, unit: unit}) do
     formatted_value = format_number(value)
     "#{formatted_value}*#{unit}"

@@ -202,6 +202,32 @@ defmodule DSMR.TelegramTest do
       assert result =~ "0-1:24.4.0(1)"
     end
 
+    test "round-trip: serialization reproduces the original telegram byte-for-byte" do
+      original =
+        Enum.join([
+          "/ISk5\\2MT382-1000\r\n",
+          "\r\n",
+          "1-3:0.2.8(50)\r\n",
+          "0-0:1.0.0(170102192002W)\r\n",
+          "0-0:96.1.1(4B384547303034303436333935353037)\r\n",
+          "1-0:1.8.1(000004.426*kWh)\r\n",
+          "1-0:2.8.1(000002.444*kWh)\r\n",
+          "0-0:96.14.0(0002)\r\n",
+          "1-0:1.7.0(00.244*kW)\r\n",
+          "0-0:96.7.21(00013)\r\n",
+          "1-0:99.97.0(1)(0-0:96.7.19)(000104180320W)(0000237126*s)\r\n",
+          "1-0:32.7.0(0230.0*V)\r\n",
+          "0-1:24.1.0(003)\r\n",
+          "0-1:96.1.0(3232323241424344313233343536373839)\r\n",
+          "0-1:24.2.1(170102161005W)(00000.107*m3)\r\n",
+          "!ABCD\r\n"
+        ])
+
+      {:ok, parsed} = DSMR.parse(original, checksum: false)
+
+      assert Telegram.to_string(parsed) == original
+    end
+
     test "round-trip: parse v4.2 telegram, convert to string, parse again" do
       original_telegram_str =
         Enum.join([
