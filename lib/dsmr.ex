@@ -9,14 +9,19 @@ defmodule DSMR do
   defmodule ChecksumError do
     @moduledoc """
     Raised or returned when a telegram checksum does not match.
+
+    Contains the checksum found in the telegram (`expected`) and the checksum
+    computed from the telegram contents (`actual`).
     """
 
-    @type t() :: %__MODULE__{checksum: binary()}
+    @type t() :: %__MODULE__{expected: binary(), actual: binary()}
 
-    defexception [:checksum]
+    defexception [:expected, :actual]
 
     @impl true
-    def message(_exception), do: "checksum mismatch"
+    def message(%__MODULE__{expected: expected, actual: actual}) do
+      "checksum mismatch: telegram says #{inspect(expected)}, computed #{inspect(actual)}"
+    end
   end
 
   defmodule ParseError do
@@ -87,10 +92,10 @@ defmodule DSMR do
           # Calculate CRC16 on content before first "!"
           actual_checksum = DSMR.CRC16.checksum(raw <> "!")
 
-          if actual_checksum === expected_checksum do
+          if actual_checksum === String.upcase(expected_checksum) do
             :ok
           else
-            {:error, %ChecksumError{checksum: actual_checksum}}
+            {:error, %ChecksumError{expected: expected_checksum, actual: actual_checksum}}
           end
         end
 

@@ -348,7 +348,7 @@ defmodule DSMRTest do
 
     test "with invalid checksum" do
       assert DSMR.parse("/foo\r\n\r\n1-3:0.2.8(42)\r\n!bar\r\n") ==
-               {:error, %DSMR.ChecksumError{checksum: "7F91"}}
+               {:error, %DSMR.ChecksumError{expected: "bar", actual: "7F91"}}
     end
 
     test "with invalid checksum but ignored" do
@@ -943,7 +943,7 @@ defmodule DSMRTest do
     test "checksum off by one" do
       # Correct checksum for this telegram is 5106, using 5107 instead
       telegram = basic_telegram("5107")
-      assert {:error, %DSMR.ChecksumError{checksum: "2A99"}} = DSMR.parse(telegram)
+      assert {:error, %DSMR.ChecksumError{actual: "2A99"}} = DSMR.parse(telegram)
     end
 
     test "checksum after modifying a single character" do
