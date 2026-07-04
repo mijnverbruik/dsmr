@@ -399,12 +399,14 @@ defmodule DSMRTest do
     end
 
     test "with ! in header" do
+      # The CRC covers everything up to the terminating "!", including
+      # any "!" that appears in the header itself.
       telegram =
         Enum.join([
           "/ACME!MTR\r\n",
           "\r\n",
           "1-3:0.2.8(50)\r\n",
-          "!8B4C\r\n"
+          "!689B\r\n"
         ])
 
       assert DSMR.parse(telegram) ==
@@ -412,7 +414,7 @@ defmodule DSMRTest do
                 %Telegram{
                   header: "ACME!MTR",
                   version: "50",
-                  checksum: "8B4C"
+                  checksum: "689B"
                 }}
     end
 

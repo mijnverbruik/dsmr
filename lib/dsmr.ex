@@ -70,37 +70,27 @@ defmodule DSMR do
   def parse(string, options \\ []) when is_binary(string) and is_list(options) do
     validate_checksum = Keyword.get(options, :checksum, true)
 
-    with :ok <- early_checksum_validation(string, validate_checksum),
-         {:ok, telegram} <- do_parse(string, options) do
+    with {:ok, telegram} <- do_parse(string, options),
+         :ok <- validate_checksum(string, telegram, validate_checksum) do
       {:ok, telegram}
     end
   end
 
-  defp early_checksum_validation(_string, false), do: :ok
+  defp validate_checksum(_string, _telegram, false), do: :ok
 
-  defp early_checksum_validation(string, true) do
-    case String.split(string, "!", parts: 2) do
-      [raw, rest] ->
-        # Extract expected checksum from rest (the checksum is after the last "!" in the string)
-        expected_checksum =
-          rest |> String.trim() |> String.split("!") |> List.last() |> String.trim()
+  # Empty checksum is valid for DSMR 2.2
+  defp validate_checksum(_string, %Telegram{checksum: ""}, true), do: :ok
 
-        # Empty checksum is valid for DSMR 2.2
-        if expected_checksum === "" do
-          :ok
-        else
-          # Calculate CRC16 on content before first "!"
-          actual_checksum = DSMR.CRC16.checksum(raw <> "!")
+  defp validate_checksum(string, %Telegram{checksum: expected}, true) do
+    # A successfully parsed telegram always ends with "!" <> checksum <> "\r\n",
+    # and the CRC16 covers everything up to and including the "!".
+    crc_length = byte_size(string) - byte_size(expected) - 2
+    actual = DSMR.CRC16.checksum(binary_part(string, 0, crc_length))
 
-          if actual_checksum === String.upcase(expected_checksum) do
-            :ok
-          else
-            {:error, %ChecksumError{expected: expected_checksum, actual: actual_checksum}}
-          end
-        end
-
-      [_] ->
-        {:error, %ParseError{message: "checksum delimiter '!' not found"}}
+    if actual === String.upcase(expected) do
+      :ok
+    else
+      {:error, %ChecksumError{expected: expected, actual: actual}}
     end
   end
 
