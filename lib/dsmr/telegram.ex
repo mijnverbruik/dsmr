@@ -10,48 +10,16 @@ defmodule DSMR.Telegram do
   This keeps parsing tolerant of regional extensions and meter-specific fields.
   """
 
+  alias DSMR.{Measurement, MBusDevice, OBIS, Timestamp}
+
+  # The struct and its typespec are derived from DSMR.OBIS.field_definitions/0,
+  # the single source of truth for telegram fields and their value types.
+  @obis_field_definitions OBIS.field_definitions()
+
   @enforce_keys [:header, :checksum]
-  defstruct [
-    :header,
-    :checksum,
-    :version,
-    :measured_at,
-    :equipment_id,
-    :electricity_delivered_1,
-    :electricity_delivered_2,
-    :electricity_returned_1,
-    :electricity_returned_2,
-    :electricity_tariff_indicator,
-    :electricity_currently_delivered,
-    :electricity_currently_returned,
-    :power_failures_count,
-    :power_failures_long_count,
-    :power_failures_log,
-    :voltage_sags_l1_count,
-    :voltage_sags_l2_count,
-    :voltage_sags_l3_count,
-    :voltage_swells_l1_count,
-    :voltage_swells_l2_count,
-    :voltage_swells_l3_count,
-    :actual_threshold_electricity,
-    :actual_switch_position,
-    :text_message,
-    :text_message_code,
-    :phase_power_current_l1,
-    :phase_power_current_l2,
-    :phase_power_current_l3,
-    :currently_delivered_l1,
-    :currently_delivered_l2,
-    :currently_delivered_l3,
-    :currently_returned_l1,
-    :currently_returned_l2,
-    :currently_returned_l3,
-    :voltage_l1,
-    :voltage_l2,
-    :voltage_l3,
-    mbus_devices: [],
-    unknown_fields: []
-  ]
+  defstruct [:header, :checksum] ++
+              Keyword.keys(@obis_field_definitions) ++
+              [mbus_devices: [], unknown_fields: []]
 
   @type obis_t() ::
           {non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer(),
@@ -75,49 +43,34 @@ defmodule DSMR.Telegram do
 
   @type power_failure_event_t() :: [DSMR.Timestamp.t() | DSMR.Measurement.t()]
 
-  @type t() :: %__MODULE__{
-          header: String.t(),
-          checksum: String.t(),
-          version: maybe(String.t()),
-          measured_at: maybe(DSMR.Timestamp.t()),
-          equipment_id: maybe(String.t()),
-          electricity_delivered_1: maybe(DSMR.Measurement.t()),
-          electricity_delivered_2: maybe(DSMR.Measurement.t()),
-          electricity_returned_1: maybe(DSMR.Measurement.t()),
-          electricity_returned_2: maybe(DSMR.Measurement.t()),
-          electricity_tariff_indicator: maybe(String.t()),
-          electricity_currently_delivered: maybe(DSMR.Measurement.t()),
-          electricity_currently_returned: maybe(DSMR.Measurement.t()),
-          power_failures_count: maybe(String.t()),
-          power_failures_long_count: maybe(String.t()),
-          power_failures_log: maybe([power_failure_event_t()]),
-          voltage_sags_l1_count: maybe(String.t()),
-          voltage_sags_l2_count: maybe(String.t()),
-          voltage_sags_l3_count: maybe(String.t()),
-          voltage_swells_l1_count: maybe(String.t()),
-          voltage_swells_l2_count: maybe(String.t()),
-          voltage_swells_l3_count: maybe(String.t()),
-          actual_threshold_electricity: maybe(DSMR.Measurement.t()),
-          actual_switch_position: maybe(String.t()),
-          text_message: maybe(String.t()),
-          text_message_code: maybe(String.t()),
-          phase_power_current_l1: maybe(DSMR.Measurement.t()),
-          phase_power_current_l2: maybe(DSMR.Measurement.t()),
-          phase_power_current_l3: maybe(DSMR.Measurement.t()),
-          currently_delivered_l1: maybe(DSMR.Measurement.t()),
-          currently_delivered_l2: maybe(DSMR.Measurement.t()),
-          currently_delivered_l3: maybe(DSMR.Measurement.t()),
-          currently_returned_l1: maybe(DSMR.Measurement.t()),
-          currently_returned_l2: maybe(DSMR.Measurement.t()),
-          currently_returned_l3: maybe(DSMR.Measurement.t()),
-          voltage_l1: maybe(DSMR.Measurement.t()),
-          voltage_l2: maybe(DSMR.Measurement.t()),
-          voltage_l3: maybe(DSMR.Measurement.t()),
-          mbus_devices: [DSMR.MBusDevice.t()],
-          unknown_fields: [unknown_field_t()]
-        }
+  obis_field_specs =
+    Enum.map(@obis_field_definitions, fn {field, {_obis, type}} ->
+      spec =
+        case type do
+          :string -> quote(do: maybe(String.t()))
+          :timestamp -> quote(do: maybe(DSMR.Timestamp.t()))
+          :measurement -> quote(do: maybe(DSMR.Measurement.t()))
+          :power_failures_log -> quote(do: maybe([power_failure_event_t()]))
+        end
 
-  alias DSMR.{Measurement, MBusDevice, OBIS, Timestamp}
+      {field, spec}
+    end)
+
+  telegram_specs =
+    [header: quote(do: String.t()), checksum: quote(do: String.t())] ++
+      obis_field_specs ++
+      [
+        mbus_devices: quote(do: [DSMR.MBusDevice.t()]),
+        unknown_fields: quote(do: [unknown_field_t()])
+      ]
+
+  Code.eval_quoted(
+    quote do
+      @type t() :: %__MODULE__{unquote_splicing(telegram_specs)}
+    end,
+    [],
+    __ENV__
+  )
 
   @doc """
   Converts a Telegram struct back to its string representation.

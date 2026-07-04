@@ -7,45 +7,50 @@ defmodule DSMR.OBIS do
   by `DSMR.Telegram.to_string/1`.
   """
 
-  # Define mappings as ordered keyword list: field => OBIS string
-  # Order matters - this defines the serialization order for telegrams
-  @telegram_field_mappings [
-    version: "1-3:0.2.8",
-    measured_at: "0-0:1.0.0",
-    equipment_id: "0-0:96.1.1",
-    electricity_delivered_1: "1-0:1.8.1",
-    electricity_delivered_2: "1-0:1.8.2",
-    electricity_returned_1: "1-0:2.8.1",
-    electricity_returned_2: "1-0:2.8.2",
-    electricity_tariff_indicator: "0-0:96.14.0",
-    electricity_currently_delivered: "1-0:1.7.0",
-    electricity_currently_returned: "1-0:2.7.0",
-    power_failures_count: "0-0:96.7.21",
-    power_failures_long_count: "0-0:96.7.9",
-    power_failures_log: nil,
-    voltage_sags_l1_count: "1-0:32.32.0",
-    voltage_sags_l2_count: "1-0:52.32.0",
-    voltage_sags_l3_count: "1-0:72.32.0",
-    voltage_swells_l1_count: "1-0:32.36.0",
-    voltage_swells_l2_count: "1-0:52.36.0",
-    voltage_swells_l3_count: "1-0:72.36.0",
-    actual_threshold_electricity: "0-0:17.0.0",
-    actual_switch_position: "0-0:96.3.10",
-    text_message_code: "0-0:96.13.1",
-    text_message: "0-0:96.13.0",
-    voltage_l1: "1-0:32.7.0",
-    voltage_l2: "1-0:52.7.0",
-    voltage_l3: "1-0:72.7.0",
-    phase_power_current_l1: "1-0:31.7.0",
-    phase_power_current_l2: "1-0:51.7.0",
-    phase_power_current_l3: "1-0:71.7.0",
-    currently_delivered_l1: "1-0:21.7.0",
-    currently_delivered_l2: "1-0:41.7.0",
-    currently_delivered_l3: "1-0:61.7.0",
-    currently_returned_l1: "1-0:22.7.0",
-    currently_returned_l2: "1-0:42.7.0",
-    currently_returned_l3: "1-0:62.7.0"
+  # Single source of truth for telegram fields: field => {OBIS string, value type}.
+  # Order matters - this defines the serialization order for telegrams.
+  # The value type drives the generated `DSMR.Telegram` struct typespec.
+  @telegram_field_definitions [
+    version: {"1-3:0.2.8", :string},
+    measured_at: {"0-0:1.0.0", :timestamp},
+    equipment_id: {"0-0:96.1.1", :string},
+    electricity_delivered_1: {"1-0:1.8.1", :measurement},
+    electricity_delivered_2: {"1-0:1.8.2", :measurement},
+    electricity_returned_1: {"1-0:2.8.1", :measurement},
+    electricity_returned_2: {"1-0:2.8.2", :measurement},
+    electricity_tariff_indicator: {"0-0:96.14.0", :string},
+    electricity_currently_delivered: {"1-0:1.7.0", :measurement},
+    electricity_currently_returned: {"1-0:2.7.0", :measurement},
+    power_failures_count: {"0-0:96.7.21", :string},
+    power_failures_long_count: {"0-0:96.7.9", :string},
+    power_failures_log: {nil, :power_failures_log},
+    voltage_sags_l1_count: {"1-0:32.32.0", :string},
+    voltage_sags_l2_count: {"1-0:52.32.0", :string},
+    voltage_sags_l3_count: {"1-0:72.32.0", :string},
+    voltage_swells_l1_count: {"1-0:32.36.0", :string},
+    voltage_swells_l2_count: {"1-0:52.36.0", :string},
+    voltage_swells_l3_count: {"1-0:72.36.0", :string},
+    actual_threshold_electricity: {"0-0:17.0.0", :measurement},
+    actual_switch_position: {"0-0:96.3.10", :string},
+    text_message_code: {"0-0:96.13.1", :string},
+    text_message: {"0-0:96.13.0", :string},
+    voltage_l1: {"1-0:32.7.0", :measurement},
+    voltage_l2: {"1-0:52.7.0", :measurement},
+    voltage_l3: {"1-0:72.7.0", :measurement},
+    phase_power_current_l1: {"1-0:31.7.0", :measurement},
+    phase_power_current_l2: {"1-0:51.7.0", :measurement},
+    phase_power_current_l3: {"1-0:71.7.0", :measurement},
+    currently_delivered_l1: {"1-0:21.7.0", :measurement},
+    currently_delivered_l2: {"1-0:41.7.0", :measurement},
+    currently_delivered_l3: {"1-0:61.7.0", :measurement},
+    currently_returned_l1: {"1-0:22.7.0", :measurement},
+    currently_returned_l2: {"1-0:42.7.0", :measurement},
+    currently_returned_l3: {"1-0:62.7.0", :measurement}
   ]
+
+  @telegram_field_mappings Enum.map(@telegram_field_definitions, fn {field, {obis, _type}} ->
+                             {field, obis}
+                           end)
 
   # Build reverse mapping at compile time: OBIS list => field name
   @obis_to_field_mappings @telegram_field_mappings
@@ -122,6 +127,17 @@ defmodule DSMR.OBIS do
   def get_field(obis_list) when is_list(obis_list) do
     Map.get(@obis_to_field_mappings, obis_list)
   end
+
+  @doc """
+  Returns the ordered field definitions: `{field, {obis_string, value_type}}`.
+
+  This is the single source of truth for telegram fields; `DSMR.Telegram`
+  derives its struct and typespec from it at compile time.
+  """
+  @spec field_definitions() :: [
+          {atom(), {String.t() | nil, :string | :timestamp | :measurement | :power_failures_log}}
+        ]
+  def field_definitions, do: @telegram_field_definitions
 
   @doc """
   Returns all field-to-OBIS mappings as a map.
