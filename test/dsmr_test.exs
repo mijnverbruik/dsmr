@@ -1042,9 +1042,60 @@ defmodule DSMRTest do
 
     test "timestamp too short" do
       telegram = invalid_timestamp_telegram(:too_short)
-      # Parser stores invalid timestamps as strings without validation
-      assert {:ok, result} = DSMR.parse(telegram, checksum: false)
-      assert is_binary(result.measured_at)
+
+      assert {:error, %DSMR.ParseError{message: message}} =
+               DSMR.parse(telegram, checksum: false)
+
+      assert message =~ "invalid timestamp"
+    end
+
+    test "timestamp missing the DST marker" do
+      telegram = invalid_timestamp_telegram(:missing_dst)
+
+      assert {:error, %DSMR.ParseError{message: message}} =
+               DSMR.parse(telegram, checksum: false)
+
+      assert message =~ "missing DST marker"
+    end
+
+    test "timestamp with lowercase DST marker" do
+      telegram = invalid_timestamp_telegram(:lowercase_dst)
+
+      assert {:error, %DSMR.ParseError{message: message}} =
+               DSMR.parse(telegram, checksum: false)
+
+      assert message =~ "missing DST marker"
+    end
+
+    test "M-Bus reading timestamp missing the DST marker parses as legacy timestamp" do
+      # Legacy meters (DSMR 2.2/3.0) emit M-Bus timestamps without a DST
+      # marker; these become a Timestamp with a nil dst instead of a string.
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-1:24.2.1(170102161005)(00000.107*m3)\r\n",
+          "!XXXX\r\n"
+        ])
+
+      assert {:ok, %Telegram{mbus_devices: [device]}} = DSMR.parse(telegram, checksum: false)
+
+      assert device.last_reading_measured_at == %Timestamp{
+               value: ~N[2017-01-02 16:10:05],
+               dst: nil
+             }
+    end
+
+    test "M-Bus reading with a malformed timestamp" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "0-1:24.2.1(ABCDEF)(00000.107*m3)\r\n",
+          "!XXXX\r\n"
+        ])
+
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram, checksum: false)
     end
 
     test "timestamp too long" do

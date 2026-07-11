@@ -147,6 +147,8 @@ defmodule DSMR.TelegramFixtures do
         :feb_30 -> "990230120000W"
         :too_short -> "99113023W"
         :too_long -> "99113023595999W"
+        :missing_dst -> "991130235959"
+        :lowercase_dst -> "991130235959s"
       end
 
     Enum.join([

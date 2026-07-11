@@ -3,6 +3,11 @@ defmodule DSMR.Parser do
 
   alias DSMR.{MBusDevice, Measurement, Telegram, Timestamp}
 
+  # Fields that must contain a timestamp. The lexer only produces timestamp
+  # tokens for values with a DST marker (12 digits + W/S); anything else that
+  # lands in these fields (e.g. a bare 12-digit value) is a spec violation.
+  @timestamp_fields for {field, {_obis, :timestamp}} <- DSMR.OBIS.field_definitions(), do: field
+
   @doc """
   Parses DSMR telegram input into a structured Telegram.
 
@@ -120,6 +125,16 @@ defmodule DSMR.Parser do
     end
   end
 
+  defp process_telegram_field(telegram, field, value, opts) when field in @timestamp_fields do
+    case extract_value(value, opts) do
+      %Timestamp{} = timestamp ->
+        {:ok, Map.put(telegram, field, timestamp)}
+
+      _ ->
+        {:error, %DSMR.ParseError{message: "invalid timestamp for #{field}: missing DST marker"}}
+    end
+  end
+
   defp process_telegram_field(telegram, field, value, opts) do
     {:ok, Map.put(telegram, field, extract_value(value, opts))}
   end
@@ -157,15 +172,15 @@ defmodule DSMR.Parser do
   end
 
   defp process_mbus_field({:mbus_field, channel, :last_reading, attrs}, device, opts) do
-    case attrs do
-      [measured_at, value] ->
-        {:ok,
-         %{
-           device
-           | last_reading_measured_at: extract_value(measured_at, opts),
-             last_reading_value: extract_value(value, opts)
-         }}
-
+    with [measured_at, value] <- attrs,
+         %Timestamp{} = timestamp <- extract_mbus_timestamp(measured_at, opts) do
+      {:ok,
+       %{
+         device
+         | last_reading_measured_at: timestamp,
+           last_reading_value: extract_value(value, opts)
+       }}
+    else
       _ ->
         {:error, %DSMR.ParseError{message: "malformed M-Bus reading (0-#{channel}:24.2.1)"}}
     end
@@ -202,6 +217,15 @@ defmodule DSMR.Parser do
         {:error, %DSMR.ParseError{message: "malformed legacy gas reading (0-#{channel}:24.3.0)"}}
     end
   end
+
+  # M-Bus readings converted from legacy meters (DSMR 2.2/3.0) carry a
+  # timestamp without a DST marker; parse those into a Timestamp with a nil
+  # dst instead of leaving them as plain strings.
+  defp extract_mbus_timestamp({:string, <<_::binary-size(12)>> = value}, opts) do
+    extract_value({:timestamp, value}, opts)
+  end
+
+  defp extract_mbus_timestamp(attr, opts), do: extract_value(attr, opts)
 
   defp extract_value([value], opts), do: extract_value(value, opts)
   defp extract_value(nil, _opts), do: nil
