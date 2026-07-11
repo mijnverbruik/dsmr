@@ -1441,6 +1441,42 @@ defmodule DSMRTest do
     end
   end
 
+  describe "lenient parsing" do
+    test "LF-only line endings parse with checksum validation" do
+      telegram = line_ending_telegram(:lf_only)
+
+      assert {:error, %DSMR.ParseError{}} = DSMR.parse(telegram)
+
+      assert {:ok, %Telegram{version: "50", checksum: "2A99"}} =
+               DSMR.parse(telegram, lenient: true)
+    end
+
+    test "power failures log count mismatch is accepted" do
+      telegram =
+        Enum.join([
+          "/TEST\r\n",
+          "\r\n",
+          "1-0:99.97.0(2)(0-0:96.7.19)(000104180320W)(0000237126*s)\r\n",
+          "!XXXX\r\n"
+        ])
+
+      assert {:error, %DSMR.ParseError{message: message}} = DSMR.parse(telegram, checksum: false)
+      assert message =~ "count mismatch"
+
+      assert {:ok, %Telegram{power_failures_log: [[timestamp, duration]]}} =
+               DSMR.parse(telegram, checksum: false, lenient: true)
+
+      assert timestamp == %Timestamp{value: ~N[2000-01-04 18:03:20], dst: "W"}
+      assert duration.value == 237_126
+    end
+
+    test "well-formed telegram parses identically with and without lenient" do
+      telegram = basic_telegram()
+
+      assert DSMR.parse(telegram) == DSMR.parse(telegram, lenient: true)
+    end
+  end
+
   describe "line ending variations" do
     test "LF-only line endings" do
       telegram = line_ending_telegram(:lf_only)

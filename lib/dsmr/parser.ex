@@ -20,7 +20,10 @@ defmodule DSMR.Parser do
   @spec parse(binary(), keyword()) ::
           {:ok, Telegram.t()} | {:error, term(), term()} | {:error, term()}
   def parse(input, options) do
-    opts = %{floats: Keyword.get(options, :floats, :native)}
+    opts = %{
+      floats: Keyword.get(options, :floats, :native),
+      lenient: Keyword.get(options, :lenient, false)
+    }
 
     with {:ok, tokens} <- do_lex(input),
          {:ok, _telegram} = result <- do_parse(tokens, opts) do
@@ -106,7 +109,9 @@ defmodule DSMR.Parser do
       # Each event consists of 2 elements (timestamp and duration)
       actual_count = div(length(events), 2)
 
-      if actual_count == count do
+      # Some meters declare an event count that does not match the log;
+      # lenient parsing accepts the events actually present.
+      if actual_count == count or opts.lenient do
         events =
           events
           |> Enum.map(&extract_value(&1, opts))

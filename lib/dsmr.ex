@@ -4,7 +4,8 @@ defmodule DSMR do
              |> String.split("<!-- MDOC !-->")
              |> Enum.fetch!(1)
 
-  @type parse_opt() :: {:checksum, boolean()} | {:floats, :native | :decimals}
+  @type parse_opt() ::
+          {:checksum, boolean()} | {:floats, :native | :decimals} | {:lenient, boolean()}
 
   defmodule ChecksumError do
     @moduledoc """
@@ -64,16 +65,42 @@ defmodule DSMR do
 
       * `:native` - returns native floats. This is the default.
       * `:decimals` - returns `%Decimal{}` structs for decimal values.
+
+    * `:lenient` - tolerates common deviations from the DSMR standard seen in
+      real-world setups when `true`. Defaults to `false`.
+
+      * LF-only line endings (e.g. from serial readers that strip carriage
+        returns) are converted back to CRLF before parsing and checksum
+        validation.
+      * Power failure logs whose declared event count does not match the
+        number of events (seen on some meters) are accepted; the events
+        actually present are used.
   """
   @spec parse(binary(), [parse_opt()]) ::
           {:ok, Telegram.t()} | {:error, ParseError.t() | ChecksumError.t()}
   def parse(string, options \\ []) when is_binary(string) and is_list(options) do
     validate_checksum = Keyword.get(options, :checksum, true)
 
+    string =
+      if Keyword.get(options, :lenient, false) do
+        normalize_line_endings(string)
+      else
+        string
+      end
+
     with {:ok, telegram} <- do_parse(string, options),
          :ok <- validate_checksum(string, telegram, validate_checksum) do
       {:ok, telegram}
     end
+  end
+
+  # Restores CRLF line endings on input whose carriage returns were stripped
+  # (e.g. by a serial reader). Meters compute the CRC over the original CRLF
+  # bytes, so checksum validation also runs on the normalized string.
+  defp normalize_line_endings(string) do
+    string
+    |> String.replace("\r\n", "\n")
+    |> String.replace("\n", "\r\n")
   end
 
   defp validate_checksum(_string, _telegram, false), do: :ok

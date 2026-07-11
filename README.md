@@ -109,6 +109,10 @@ Examples:
 # Skip checksum validation
 DSMR.parse(telegram, checksum: false)
 
+# Tolerate common deviations from the standard (LF-only line endings,
+# power failure log count mismatches) seen on real-world setups
+DSMR.parse(data, lenient: true)
+
 # Use Decimal for precise calculations
 DSMR.parse(telegram, floats: :decimals)
 ```
