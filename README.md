@@ -149,6 +149,24 @@ pairs. They are preserved instead of rejected.
 
 See [full documentation](https://hexdocs.pm/dsmr/DSMR.Telegram.html) for detailed field descriptions and types.
 
+### Decoding Values
+
+Parsed telegrams keep values exactly as they appear in the telegram, so
+serialization stays lossless. Two helpers decode them into more useful forms:
+
+```elixir
+# equipment_id, text_message, and M-Bus equipment ids are hex-encoded ASCII
+DSMR.Telegram.decode_octet_string(parsed.equipment_id)
+#=> {:ok, "K8EG004046395507"}
+
+# Timestamps are Dutch local time; the DST marker gives the UTC offset
+DSMR.Timestamp.to_datetime(parsed.measured_at)
+#=> {:ok, ~U[2016-11-13 19:57:57Z]}
+```
+
+`to_datetime/1` returns `{:error, :missing_dst}` for timestamps without a DST
+marker (DSMR 2.2/3.0), as their UTC offset is ambiguous.
+
 ### Serialization
 
 Use `DSMR.Telegram.to_string/1` to convert a telegram struct back to its string

@@ -416,6 +416,22 @@ defmodule DSMR.TelegramTest do
     end
   end
 
+  describe "decode_octet_string/1" do
+    test "decodes hex-encoded equipment id from a parsed telegram" do
+      {:ok, parsed} = DSMR.parse(dsmr_v30_telegram(), checksum: false)
+
+      assert Telegram.decode_octet_string(parsed.equipment_id) == {:ok, "K8EG004046395507"}
+    end
+
+    test "decodes lowercase hex" do
+      assert Telegram.decode_octet_string("4b38") == {:ok, "K8"}
+    end
+
+    test "returns :error for non-hex input" do
+      assert Telegram.decode_octet_string("XYZ") == :error
+    end
+  end
+
   describe "complete roundtrip tests" do
     test "roundtrip DSMR v2.2 telegram" do
       original = dsmr_v22_telegram()

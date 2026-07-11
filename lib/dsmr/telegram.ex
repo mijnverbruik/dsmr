@@ -73,6 +73,30 @@ defmodule DSMR.Telegram do
   )
 
   @doc """
+  Decodes a hex-encoded octet-string value to its ASCII representation.
+
+  The DSMR standard encodes octet-string values as hexadecimal ASCII: this
+  applies to `equipment_id`, `text_message`, and `DSMR.MBusDevice`
+  equipment ids. Parsed telegrams keep the raw hex value so that
+  serialization stays lossless; use this function to read the decoded text.
+
+  Returns `:error` when the value is not valid hex.
+
+  ## Examples
+
+      iex> DSMR.Telegram.decode_octet_string("4B384547303034303436333935353037")
+      {:ok, "K8EG004046395507"}
+
+      iex> DSMR.Telegram.decode_octet_string("XYZ")
+      :error
+
+  """
+  @spec decode_octet_string(String.t()) :: {:ok, String.t()} | :error
+  def decode_octet_string(value) when is_binary(value) do
+    Base.decode16(value, case: :mixed)
+  end
+
+  @doc """
   Converts a Telegram struct back to its string representation.
 
   Fields with `nil` or empty string values are omitted.
