@@ -78,8 +78,9 @@ defmodule DSMR do
 
   defp validate_checksum(_string, _telegram, false), do: :ok
 
-  # Empty checksum is valid for DSMR 2.2
-  defp validate_checksum(_string, %Telegram{checksum: ""}, true), do: :ok
+  # An empty checksum is only valid for telegrams that predate DSMR 4.0
+  # (recognizable by the absence of the version line, 1-3:0.2.8).
+  defp validate_checksum(_string, %Telegram{checksum: "", version: nil}, true), do: :ok
 
   defp validate_checksum(string, %Telegram{checksum: expected}, true) do
     # A successfully parsed telegram always ends with "!" <> checksum <> "\r\n",

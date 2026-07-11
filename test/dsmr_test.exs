@@ -885,8 +885,11 @@ defmodule DSMRTest do
 
     test "telegram with header but empty checksum" do
       telegram = checksum_format_telegram(:empty)
-      # Empty checksum is valid in DSMR 2.2
-      assert {:ok, %Telegram{header: "TEST", checksum: ""}} = DSMR.parse(telegram)
+      # The fixture declares a DSMR version (4.0+), so a checksum is mandatory
+      assert {:error, %DSMR.ChecksumError{expected: ""}} = DSMR.parse(telegram)
+
+      assert {:ok, %Telegram{header: "TEST", checksum: ""}} =
+               DSMR.parse(telegram, checksum: false)
     end
 
     test "telegram cut off mid-line" do
@@ -1089,10 +1092,15 @@ defmodule DSMRTest do
       assert {:error, %DSMR.ChecksumError{}} = DSMR.parse(telegram)
     end
 
-    test "checksum with leading zeros (empty checksum)" do
+    test "empty checksum is rejected when a DSMR version is declared" do
       telegram = checksum_format_telegram(:empty)
-      # Empty checksum is valid for DSMR 2.2
-      assert {:ok, %Telegram{checksum: ""}} = DSMR.parse(telegram)
+      # Empty checksums are only valid for pre-4.0 telegrams (no version line)
+      assert {:error, %DSMR.ChecksumError{expected: ""}} = DSMR.parse(telegram)
+    end
+
+    test "empty checksum is accepted without a declared DSMR version" do
+      telegram = "/TEST\r\n\r\n0-0:96.14.0(0001)\r\n!\r\n"
+      assert {:ok, %Telegram{version: nil, checksum: ""}} = DSMR.parse(telegram)
     end
 
     test "checksum with 3 hex digits" do
