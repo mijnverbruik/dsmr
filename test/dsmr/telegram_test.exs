@@ -40,7 +40,8 @@ defmodule DSMR.TelegramTest do
       result = Telegram.to_string(telegram)
 
       assert result =~ "1-0:1.8.1(001234.567*kWh)"
-      assert result =~ "1-0:1.7.0(000001.5*kW)"
+      # Actual power uses the F5(3) format: 2 integer digits, 3 decimals
+      assert result =~ "1-0:1.7.0(01.500*kW)"
     end
 
     test "telegram with zero values" do
@@ -53,8 +54,8 @@ defmodule DSMR.TelegramTest do
 
       result = Telegram.to_string(telegram)
 
-      assert result =~ "1-0:1.8.1(000000*kWh)"
-      assert result =~ "1-0:1.7.0(000000*kW)"
+      assert result =~ "1-0:1.8.1(000000.000*kWh)"
+      assert result =~ "1-0:1.7.0(00.000*kW)"
     end
 
     test "telegram with timestamp without DST" do
@@ -154,7 +155,8 @@ defmodule DSMR.TelegramTest do
 
       assert result =~ "0-1:24.1.0(003)"
       assert result =~ "0-1:96.1.0(3232323241424344313233343536373839)"
-      assert result =~ "0-1:24.2.1(170102161005W)(000000.107*m3)"
+      # M-Bus gas readings use the F8(3,3) format: 5 integer digits, 3 decimals
+      assert result =~ "0-1:24.2.1(170102161005W)(00000.107*m3)"
     end
 
     test "telegram with multiple MBus devices" do
@@ -375,6 +377,42 @@ defmodule DSMR.TelegramTest do
       result = Telegram.to_string(telegram)
 
       assert result =~ "1-0:1.8.1(001581.123*kWh)"
+    end
+
+    test "formats hand-built measurements with spec-defined field widths" do
+      telegram = %Telegram{
+        header: "TEST",
+        checksum: "EEEE",
+        # F9(3,3): 6 integer digits, 3 decimals
+        electricity_delivered_1: %Measurement{value: 1.0, unit: "kWh"},
+        # F4(1,1): 3 integer digits, 1 decimal
+        voltage_l1: %Measurement{value: 230.0, unit: "V"},
+        # F3(0): 3 integer digits, no decimals
+        phase_power_current_l1: %Measurement{value: 2, unit: "A"},
+        # F5(3): 2 integer digits, 3 decimals
+        currently_delivered_l1: %Measurement{value: 0.07, unit: "kW"}
+      }
+
+      result = Telegram.to_string(telegram)
+
+      assert result =~ "1-0:1.8.1(000001.000*kWh)"
+      assert result =~ "1-0:32.7.0(0230.0*V)"
+      assert result =~ "1-0:31.7.0(002*A)"
+      assert result =~ "1-0:21.7.0(00.070*kW)"
+    end
+
+    test "formats hand-built Decimal measurements with spec-defined field widths" do
+      telegram = %Telegram{
+        header: "TEST",
+        checksum: "FFFF",
+        voltage_l2: %Measurement{value: Decimal.new("230"), unit: "V"},
+        phase_power_current_l2: %Measurement{value: Decimal.new("2"), unit: "A"}
+      }
+
+      result = Telegram.to_string(telegram)
+
+      assert result =~ "1-0:52.7.0(0230.0*V)"
+      assert result =~ "1-0:51.7.0(002*A)"
     end
   end
 

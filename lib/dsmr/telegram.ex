@@ -49,7 +49,7 @@ defmodule DSMR.Telegram do
         case type do
           :string -> quote(do: maybe(String.t()))
           :timestamp -> quote(do: maybe(DSMR.Timestamp.t()))
-          :measurement -> quote(do: maybe(DSMR.Measurement.t()))
+          {:measurement, _format} -> quote(do: maybe(DSMR.Measurement.t()))
           :power_failures_log -> quote(do: maybe([power_failure_event_t()]))
         end
 
@@ -122,13 +122,15 @@ defmodule DSMR.Telegram do
   defp field_to_line(field, value) do
     case OBIS.get_obis(field) do
       nil -> nil
-      obis -> [obis, "(", format_value(value), ")"]
+      obis -> [obis, "(", format_value(field, value), ")"]
     end
   end
 
-  defp format_value(%Measurement{} = measurement), do: format_measurement(measurement)
-  defp format_value(%Timestamp{} = timestamp), do: format_timestamp(timestamp)
-  defp format_value(value) when is_binary(value), do: value
+  defp format_value(field, %Measurement{} = measurement),
+    do: format_measurement(measurement, OBIS.get_format(field))
+
+  defp format_value(_field, %Timestamp{} = timestamp), do: format_timestamp(timestamp)
+  defp format_value(_field, value) when is_binary(value), do: value
 
   defp power_failures_log_to_line(nil), do: nil
   defp power_failures_log_to_line([]), do: "1-0:99.97.0(0)(0-0:96.7.19)"
@@ -136,7 +138,7 @@ defmodule DSMR.Telegram do
   defp power_failures_log_to_line(log) when is_list(log) do
     events =
       Enum.map(log, fn [timestamp, duration] ->
-        ["(", format_timestamp(timestamp), ")(", format_measurement(duration), ")"]
+        ["(", format_timestamp(timestamp), ")(", format_measurement(duration, nil), ")"]
       end)
 
     ["1-0:99.97.0(", Integer.to_string(length(log)), ")(0-0:96.7.19)" | events]
@@ -177,51 +179,71 @@ defmodule DSMR.Telegram do
       "0-#{channel}:24.2.1(",
       format_timestamp(timestamp),
       ")(",
-      format_measurement(measurement),
+      # M-Bus gas readings use the F8(3,3) format: 5 integer digits, 3 decimals
+      format_measurement(measurement, {5, 3}),
       ")"
     ]
   end
 
   # Measurements parsed from a telegram carry the exact original text in
   # `raw`; using it keeps serialization byte-for-byte lossless. Hand-built
-  # measurements fall back to formatting the numeric value.
-  defp format_measurement(%Measurement{raw: raw, unit: unit}) when is_binary(raw) do
+  # measurements fall back to formatting the numeric value, using the
+  # spec-defined `{integer_digits, decimals}` format when one is known.
+  defp format_measurement(%Measurement{raw: raw, unit: unit}, _format) when is_binary(raw) do
     [raw, "*", unit]
   end
 
-  defp format_measurement(%Measurement{value: value, unit: unit}) do
-    [format_number(value), "*", unit]
+  defp format_measurement(%Measurement{value: value, unit: unit}, format) do
+    [format_number(value, format), "*", unit]
   end
 
-  defp format_number(value) when is_float(value) do
-    # Format with up to 3 decimal places, removing trailing zeros (and a bare
-    # trailing dot). The dot printed by decimals: 3 stops the zero-trimming
-    # from ever reaching the integer part.
+  defp format_number(value, {int_digits, decimals}) when is_float(value) do
+    :erlang.float_to_binary(value, decimals: decimals)
+    |> pad_int_part(int_digits)
+  end
+
+  defp format_number(value, {int_digits, decimals}) when is_integer(value) do
+    int = String.pad_leading(Integer.to_string(value), int_digits, "0")
+    if decimals > 0, do: int <> "." <> String.duplicate("0", decimals), else: int
+  end
+
+  # Fields without a known format (unknown OBIS codes, power failure
+  # durations) keep the permissive default: up to 3 decimals with trailing
+  # zeros removed, integer part padded to 6 digits.
+  defp format_number(value, nil) when is_float(value) do
+    # The dot printed by decimals: 3 stops the zero-trimming from ever
+    # reaching the integer part.
     :erlang.float_to_binary(value, decimals: 3)
     |> String.trim_trailing("0")
     |> String.trim_trailing(".")
-    |> pad_measurement()
+    |> pad_int_part(6)
+  end
+
+  defp format_number(value, nil) when is_integer(value) do
+    Integer.to_string(value)
+    |> pad_int_part(6)
   end
 
   if Code.ensure_loaded?(Decimal) do
-    defp format_number(%Decimal{} = value) do
+    defp format_number(%Decimal{} = value, {int_digits, decimals}) do
+      Decimal.round(value, decimals)
+      |> Decimal.to_string()
+      |> pad_int_part(int_digits)
+    end
+
+    defp format_number(%Decimal{} = value, nil) do
       Decimal.to_string(value)
-      |> pad_measurement()
+      |> pad_int_part(6)
     end
   end
 
-  defp format_number(value) when is_integer(value) do
-    Integer.to_string(value)
-    |> pad_measurement()
-  end
-
-  defp pad_measurement(str) do
+  defp pad_int_part(str, int_digits) do
     case String.split(str, ".") do
       [int] ->
-        String.pad_leading(int, 6, "0")
+        String.pad_leading(int, int_digits, "0")
 
       [int, dec] ->
-        padded_int = String.pad_leading(int, 6, "0")
+        padded_int = String.pad_leading(int, int_digits, "0")
         "#{padded_int}.#{dec}"
     end
   end
@@ -268,7 +290,7 @@ defmodule DSMR.Telegram do
   end
 
   defp format_unknown_value(%Measurement{} = measurement) do
-    ["(", format_measurement(measurement), ")"]
+    ["(", format_measurement(measurement, nil), ")"]
   end
 
   defp format_unknown_value(%Timestamp{} = timestamp) do
