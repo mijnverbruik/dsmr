@@ -18,6 +18,7 @@ jobs:
         id: release
         with:
           release-type: elixir
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   publish:
     needs: [release-please]
