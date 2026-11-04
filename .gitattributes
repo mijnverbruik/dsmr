@@ -1,0 +1,3 @@
+# Telegram fixtures must keep their CRLF line endings byte-for-byte,
+# otherwise their CRC16 checksums no longer match.
+test/fixtures/telegrams/*.txt -text

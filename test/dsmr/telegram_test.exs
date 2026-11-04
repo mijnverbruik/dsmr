@@ -205,25 +205,7 @@ defmodule DSMR.TelegramTest do
     end
 
     test "round-trip: serialization reproduces the original telegram byte-for-byte" do
-      original =
-        Enum.join([
-          "/ISk5\\2MT382-1000\r\n",
-          "\r\n",
-          "1-3:0.2.8(50)\r\n",
-          "0-0:1.0.0(170102192002W)\r\n",
-          "0-0:96.1.1(4B384547303034303436333935353037)\r\n",
-          "1-0:1.8.1(000004.426*kWh)\r\n",
-          "1-0:2.8.1(000002.444*kWh)\r\n",
-          "0-0:96.14.0(0002)\r\n",
-          "1-0:1.7.0(00.244*kW)\r\n",
-          "0-0:96.7.21(00013)\r\n",
-          "1-0:99.97.0(1)(0-0:96.7.19)(000104180320W)(0000237126*s)\r\n",
-          "1-0:32.7.0(0230.0*V)\r\n",
-          "0-1:24.1.0(003)\r\n",
-          "0-1:96.1.0(3232323241424344313233343536373839)\r\n",
-          "0-1:24.2.1(170102161005W)(00000.107*m3)\r\n",
-          "!ABCD\r\n"
-        ])
+      original = fixture!("v50_round_trip")
 
       {:ok, parsed} = DSMR.parse(original, checksum: false)
 
@@ -231,22 +213,7 @@ defmodule DSMR.TelegramTest do
     end
 
     test "round-trip: parse v4.2 telegram, convert to string, parse again" do
-      original_telegram_str =
-        Enum.join([
-          "/KFM5KAIFA-METER\r\n",
-          "\r\n",
-          "1-3:0.2.8(42)\r\n",
-          "0-0:1.0.0(161113205757W)\r\n",
-          "0-0:96.1.1(3960221976967177082151037881335713)\r\n",
-          "1-0:1.8.1(001581.123*kWh)\r\n",
-          "1-0:1.8.2(001435.706*kWh)\r\n",
-          "1-0:2.8.1(000000.000*kWh)\r\n",
-          "1-0:2.8.2(000000.000*kWh)\r\n",
-          "0-0:96.14.0(0002)\r\n",
-          "1-0:1.7.0(02.027*kW)\r\n",
-          "1-0:2.7.0(00.000*kW)\r\n",
-          "!6796\r\n"
-        ])
+      original_telegram_str = fixture!("v42_kaifa")
 
       {:ok, parsed} = DSMR.parse(original_telegram_str, checksum: false)
       converted = Telegram.to_string(parsed)
@@ -262,27 +229,7 @@ defmodule DSMR.TelegramTest do
     end
 
     test "round-trip: parse v5.0 telegram, convert to string, parse again" do
-      original_telegram_str =
-        Enum.join([
-          "/ISk5\\2MT382-1000\r\n",
-          "\r\n",
-          "1-3:0.2.8(50)\r\n",
-          "0-0:1.0.0(170102192002W)\r\n",
-          "0-0:96.1.1(4B384547303034303436333935353037)\r\n",
-          "1-0:1.8.1(000004.426*kWh)\r\n",
-          "1-0:1.8.2(000002.399*kWh)\r\n",
-          "1-0:2.8.1(000002.444*kWh)\r\n",
-          "1-0:2.8.2(000000.000*kWh)\r\n",
-          "0-0:96.14.0(0002)\r\n",
-          "1-0:1.7.0(00.244*kW)\r\n",
-          "1-0:2.7.0(00.000*kW)\r\n",
-          "1-0:32.7.0(0230.0*V)\r\n",
-          "1-0:31.7.0(0.48*A)\r\n",
-          "0-1:24.1.0(003)\r\n",
-          "0-1:96.1.0(3232323241424344313233343536373839)\r\n",
-          "0-1:24.2.1(170102161005W)(00000.107*m3)\r\n",
-          "!6EEE\r\n"
-        ])
+      original_telegram_str = fixture!("v50_iskra_mt382")
 
       {:ok, parsed} = DSMR.parse(original_telegram_str, checksum: false)
       converted = Telegram.to_string(parsed)
@@ -418,7 +365,7 @@ defmodule DSMR.TelegramTest do
 
   describe "decode_octet_string/1" do
     test "decodes hex-encoded equipment id from a parsed telegram" do
-      {:ok, parsed} = DSMR.parse(dsmr_v30_telegram(), checksum: false)
+      {:ok, parsed} = DSMR.parse(fixture!("v30_iskra_mt382"), checksum: false)
 
       assert Telegram.decode_octet_string(parsed.equipment_id) == {:ok, "K8EG004046395507"}
     end
@@ -434,7 +381,7 @@ defmodule DSMR.TelegramTest do
 
   describe "complete roundtrip tests" do
     test "roundtrip DSMR v2.2 telegram" do
-      original = dsmr_v22_telegram()
+      original = fixture!("v22_iskra_mt382")
 
       {:ok, parsed} = DSMR.parse(original, checksum: false)
       converted = Telegram.to_string(parsed)
@@ -446,7 +393,7 @@ defmodule DSMR.TelegramTest do
     end
 
     test "roundtrip DSMR v3.0 telegram" do
-      original = dsmr_v30_telegram()
+      original = fixture!("v30_iskra_mt382")
 
       {:ok, parsed} = DSMR.parse(original, checksum: false)
       converted = Telegram.to_string(parsed)
@@ -457,8 +404,8 @@ defmodule DSMR.TelegramTest do
       assert reparsed.text_message_code == parsed.text_message_code
     end
 
-    test "roundtrip DSMR v4.0 telegram with power failures" do
-      original = dsmr_v40_telegram()
+    test "roundtrip DSMR v4.2 telegram with power failures" do
+      original = fixture!("v42_kaifa")
 
       {:ok, parsed} = DSMR.parse(original, checksum: false)
       converted = Telegram.to_string(parsed)
@@ -470,7 +417,7 @@ defmodule DSMR.TelegramTest do
     end
 
     test "roundtrip telegram with all major fields populated" do
-      original = full_featured_telegram()
+      original = fixture!("v50_iskra_mt382")
 
       {:ok, parsed} = DSMR.parse(original, checksum: false)
       converted = Telegram.to_string(parsed)

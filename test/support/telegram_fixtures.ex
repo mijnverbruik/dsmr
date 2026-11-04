@@ -247,104 +247,21 @@ defmodule DSMR.TelegramFixtures do
     ])
   end
 
-  # Version-specific telegram fixtures
+  @fixtures_dir Path.expand("../fixtures/telegrams", __DIR__)
 
   @doc """
-  Returns a DSMR v2.2 telegram.
+  Returns the raw contents of `test/fixtures/telegrams/<name>.txt`.
+
+  Fixture files hold complete telegrams exactly as a meter sends them,
+  including CRLF line endings and a valid CRC16 checksum (pre-v4 telegrams
+  have no checksum).
   """
-  def dsmr_v22_telegram do
-    Enum.join([
-      "/ISk5\\2MT382-1004\r\n",
-      "\r\n",
-      "0-0:96.1.1(00000000000000)\r\n",
-      "1-0:1.8.1(00001.001*kWh)\r\n",
-      "1-0:2.8.1(00001.001*kWh)\r\n",
-      "0-0:96.14.0(0001)\r\n",
-      "1-0:1.7.0(0001.01*kW)\r\n",
-      "0-0:96.13.1()\r\n",
-      "0-1:24.1.0(3)\r\n",
-      "0-1:96.1.0(000000000000)\r\n",
-      "0-1:24.3.0(161107190000)(00)(60)(1)(0-1:24.2.1)(m3)\r\n",
-      "(00001.001)\r\n",
-      "!\r\n"
-    ])
-  end
+  def fixture!(name), do: File.read!(Path.join(@fixtures_dir, name <> ".txt"))
 
   @doc """
-  Returns a DSMR v3.0 telegram.
+  Returns the paths of all telegram fixture files.
   """
-  def dsmr_v30_telegram do
-    Enum.join([
-      "/ISk5\\2MT382-1000\r\n",
-      "\r\n",
-      "0-0:96.1.1(4B384547303034303436333935353037)\r\n",
-      "1-0:1.8.1(12345.678*kWh)\r\n",
-      "1-0:2.8.2(12345.678*kWh)\r\n",
-      "0-0:96.14.0(0002)\r\n",
-      "1-0:1.7.0(001.19*kW)\r\n",
-      "0-0:96.13.1(303132333435363738)\r\n",
-      "0-1:24.1.0(03)\r\n",
-      "0-1:96.1.0(3232323241424344313233343536373839)\r\n",
-      "0-1:24.3.0(090212160000)(00)(60)(1)(0-1:24.2.1)(m3)\r\n",
-      "(00001.001)\r\n",
-      "!\r\n"
-    ])
-  end
-
-  @doc """
-  Returns a DSMR v4.0 telegram with power failures.
-  """
-  def dsmr_v40_telegram do
-    Enum.join([
-      "/KFM5KAIFA-METER\r\n",
-      "\r\n",
-      "1-3:0.2.8(40)\r\n",
-      "0-0:1.0.0(161113205757W)\r\n",
-      "0-0:96.1.1(3960221976967177082151037881335713)\r\n",
-      "1-0:1.8.1(001581.123*kWh)\r\n",
-      "1-0:2.8.2(000000.000*kWh)\r\n",
-      "0-0:96.7.21(00015)\r\n",
-      "1-0:99.97.0(2)(0-0:96.7.19)(000104180320W)(0000237126*s)(000101000001W)(2147583646*s)\r\n",
-      "0-0:96.13.0()\r\n",
-      "!AA23\r\n"
-    ])
-  end
-
-  @doc """
-  Returns a full-featured telegram with all major fields populated.
-  """
-  def full_featured_telegram do
-    Enum.join([
-      "/ISk5\\2MT382-1000\r\n",
-      "\r\n",
-      "1-3:0.2.8(50)\r\n",
-      "0-0:1.0.0(170102192002W)\r\n",
-      "0-0:96.1.1(4B384547303034303436333935353037)\r\n",
-      "1-0:1.8.1(000004.426*kWh)\r\n",
-      "1-0:1.8.2(000002.399*kWh)\r\n",
-      "1-0:2.8.1(000002.444*kWh)\r\n",
-      "1-0:2.8.2(000000.000*kWh)\r\n",
-      "0-0:96.14.0(0002)\r\n",
-      "1-0:1.7.0(00.244*kW)\r\n",
-      "1-0:2.7.0(00.000*kW)\r\n",
-      "0-0:96.7.21(00013)\r\n",
-      "0-0:96.7.9(00000)\r\n",
-      "1-0:99.97.0(0)(0-0:96.7.19)\r\n",
-      "1-0:32.7.0(0230.0*V)\r\n",
-      "1-0:52.7.0(0230.0*V)\r\n",
-      "1-0:72.7.0(0229.0*V)\r\n",
-      "1-0:31.7.0(0.48*A)\r\n",
-      "1-0:51.7.0(0.44*A)\r\n",
-      "1-0:71.7.0(0.86*A)\r\n",
-      "1-0:21.7.0(00.070*kW)\r\n",
-      "1-0:41.7.0(00.032*kW)\r\n",
-      "1-0:61.7.0(00.142*kW)\r\n",
-      "0-1:24.1.0(003)\r\n",
-      "0-1:96.1.0(3232323241424344313233343536373839)\r\n",
-      "0-1:24.2.1(170102161005W)(00000.107*m3)\r\n",
-      "!AA23\r\n"
-    ])
-  end
+  def fixture_paths, do: Path.wildcard(Path.join(@fixtures_dir, "*.txt"))
 
   @doc """
   Returns a valid M-Bus device telegram for a specific channel.
