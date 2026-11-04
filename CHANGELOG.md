@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1](https://github.com/mijnverbruik/dsmr/compare/v1.1.0...v1.1.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* parse empty power failures log `1-0:99.97.0()` ([#94](https://github.com/mijnverbruik/dsmr/issues/94)) ([750a4c4](https://github.com/mijnverbruik/dsmr/commit/750a4c48197d39548af4ab4e65e1804135f78d62))
+
 ## [1.1.0](https://github.com/mijnverbruik/dsmr/compare/v1.0.0...v1.1.0) (2026-07-11)
 
 
