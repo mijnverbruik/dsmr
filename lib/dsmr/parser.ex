@@ -101,6 +101,12 @@ defmodule DSMR.Parser do
     end)
   end
 
+  # Some DSMR 5 meters (e.g. Iskra AM550) send `1-0:99.97.0()` when no long
+  # power failures have been logged.
+  defp process_telegram_field(telegram, :power_failures_log, [nil], _opts) do
+    {:ok, %{telegram | power_failures_log: []}}
+  end
+
   # Process telegram field - now field name comes from parser
   defp process_telegram_field(telegram, :power_failures_log, value, opts) do
     # Special case: power failures log with nested structure
