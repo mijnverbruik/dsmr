@@ -493,6 +493,53 @@ defmodule DSMRTest do
                 }}
     end
 
+    test "with telegram v5.0 with an empty power failures log" do
+      # Iskra AM550 sends `1-0:99.97.0()` when no long power failures are logged
+      telegram =
+        Enum.join([
+          "/ISK5\\2M550E-1011\r\n",
+          "\r\n",
+          "1-3:0.2.8(50)\r\n",
+          "0-0:1.0.0(241103143512W)\r\n",
+          "0-0:96.1.1(4530303434303037313331363530373139)\r\n",
+          "1-0:1.8.1(001234.567*kWh)\r\n",
+          "1-0:1.8.2(002345.678*kWh)\r\n",
+          "1-0:2.8.1(000012.345*kWh)\r\n",
+          "1-0:2.8.2(000023.456*kWh)\r\n",
+          "0-0:96.14.0(0002)\r\n",
+          "1-0:1.7.0(00.312*kW)\r\n",
+          "1-0:2.7.0(00.000*kW)\r\n",
+          "0-0:96.7.21(00004)\r\n",
+          "0-0:96.7.9(00000)\r\n",
+          "1-0:99.97.0()\r\n",
+          "1-0:32.32.0(00002)\r\n",
+          "1-0:32.36.0(00000)\r\n",
+          "0-0:96.13.0()\r\n",
+          "1-0:32.7.0(231.0*V)\r\n",
+          "1-0:31.7.0(001*A)\r\n",
+          "1-0:21.7.0(00.312*kW)\r\n",
+          "1-0:22.7.0(00.000*kW)\r\n",
+          "!4AED\r\n"
+        ])
+
+      assert {:ok, parsed} = DSMR.parse(telegram)
+
+      assert %Telegram{
+               header: "ISK5\\2M550E-1011",
+               checksum: "4AED",
+               version: "50",
+               power_failures_count: "00004",
+               power_failures_long_count: "00000",
+               power_failures_log: [],
+               voltage_sags_l1_count: "00002",
+               electricity_delivered_1: %Measurement{value: 1234.567, unit: "kWh"}
+             } = parsed
+
+      serialized = Telegram.to_string(parsed)
+      assert serialized =~ "1-0:99.97.0(0)(0-0:96.7.19)\r\n"
+      assert {:ok, ^parsed} = DSMR.parse(serialized, checksum: false)
+    end
+
     test "with empty telegram" do
       assert DSMR.parse("/empty\r\n\r\n!0039\r\n") ==
                {:ok, %Telegram{header: "empty", checksum: "0039"}}
